@@ -517,7 +517,6 @@ function handleWheel(e: WheelEvent) {
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-app-border);
-  padding: 5px;
   border-radius: 10px;
 }
 
