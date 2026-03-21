@@ -14,7 +14,7 @@ const isSettingsOpen = ref(false);
 const appConfig = reactive({
   maxDepth: 3,
   ignoreExts: ".git, node_modules, dist, target, build, .vscode, .idea, .next, .nuxt, .output, .vercel, .github, *.lock, *.log, *.tmp, *.temp, *.png, *.jpg, *.jpeg, *.gif, *.svg, *.ico, *.webp, *.mp4, *.avi, *.mkv, *.mov, *.webm, *.mp3, *.wav, *.flac, *.aac, *.ogg, *.zip, *.tar, *.gz, *.7z, *.rar, *.exe, *.dll, *.so, *.dylib",
-  ignoreDeepParse: "",
+  ignoreDeepParse: "package.json, tsconfig.json, vite.config.ts, tauri.conf.json, README.md, Cargo.toml, .env, *.test.ts, *.spec.ts",
   customPrompt: "",
   generateTree: true,
   autoGenerate: true,

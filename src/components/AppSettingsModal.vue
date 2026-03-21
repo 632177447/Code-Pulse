@@ -46,7 +46,7 @@ const settingsGroups = [
         type: 'textarea',
         label: '不进行深层解析的忽略配置',
         description: '可通过英文逗号或换行分隔，支持使用 *。匹配到的文件将作为终端上下文，但不继续向下深挖。',
-        placeholder: '',
+        placeholder: "package.json, tsconfig.json, vite.config.ts, README.md, *.test.ts",
         rows: 3
       },
       {
