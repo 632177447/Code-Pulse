@@ -5,6 +5,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import AppSettingsModal from "./components/AppSettingsModal.vue";
 import DependencyTreeSidebar from "./components/DependencyTreeSidebar.vue";
+import ContextWorker from "./workers/context.worker.ts?worker";
 
 const outputContext = ref("");
 const fileNodes = ref<{path: string, content: string, abs_path: string, originId?: string}[]>([]);
@@ -16,6 +17,17 @@ const userPrompt = ref("");
 const isEditing = ref(false);
 const outputAreaRef = ref<HTMLTextAreaElement | null>(null);
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Worker 实例：字符串拼接全部在独立线程执行，主线程不卡
+const contextWorker = new ContextWorker();
+contextWorker.onmessage = (e: MessageEvent<string>) => {
+    outputContext.value = e.data;
+    isLoading.value = false;
+};
+contextWorker.onerror = (e) => {
+    console.error('Context worker error:', e);
+    isLoading.value = false;
+};
 
 const totalCharacters = computed(() => {
   return outputContext.value ? outputContext.value.length : 0;
@@ -146,11 +158,12 @@ async function processPaths(paths: string[]) {
         
         return { ...node, originId: origin?.id };
     });
+    
+    // 将耗时的字符串拼接调度到 Worker 线程，主线程立即释放
     updateOutputContext();
-} catch (error) {
+  } catch (error) {
     console.error("Failed to generate context:", error);
     outputContext.value = `Error: ${error}`;
-  } finally {
     isLoading.value = false;
   }
 }
@@ -160,58 +173,15 @@ function updateOutputContext() {
         outputContext.value = "";
         return;
     }
-
-    let finalContext = "";
-
-    if (appConfig.generateTree) {
-        const paths = fileNodes.value.map(n => n.path);
-        let tree = "========================================\n[FILE TREE]\n========================================\n.\n";
-        const sortedPaths = [...paths].sort();
-        let prevComponents: string[] = [];
-        for (const path of sortedPaths) {
-            const components = path.split('/');
-            let i = 0;
-            while (i < components.length && i < prevComponents.length && components[i] === prevComponents[i]) {
-                i++;
-            }
-            while (i < components.length) {
-                const indent = "│   ".repeat(i);
-                tree += `${indent}├── ${components[i]}\n`;
-                i++;
-            }
-            prevComponents = components;
-        }
-        finalContext += tree + "\n";
-    }
-
-    if (appConfig.customPrompt.trim()) {
-      finalContext += "========================================\n";
-      finalContext += "[SYSTEM SETTINGS]\n";
-      finalContext += "========================================\n";
-      finalContext += appConfig.customPrompt.trim() + "\n\n";
-    }
-
-    const PENDING_USER_PROMPT = userPrompt.value.trim();
-    const LONG_CONTEXT_THRESHOLD = 8000;
-    const blocksContent = fileNodes.value.map(n => n.content).join("\n\n");
-
-    if (PENDING_USER_PROMPT && blocksContent.length <= LONG_CONTEXT_THRESHOLD) {
-      finalContext += "========================================\n";
-      finalContext += "[USER REQUIREMENTS]\n";
-      finalContext += "========================================\n";
-      finalContext += PENDING_USER_PROMPT + "\n\n";
-    }
-
-    finalContext += blocksContent;
-
-    if (PENDING_USER_PROMPT && blocksContent.length > LONG_CONTEXT_THRESHOLD) {
-      finalContext += "\n\n========================================\n";
-      finalContext += "[USER REQUIREMENTS]\n";
-      finalContext += "========================================\n";
-      finalContext += PENDING_USER_PROMPT;
-    }
-    
-    outputContext.value = finalContext;
+    // 将所有数据发给 Worker，主线程立即返回，字符串拼接在后台线程执行
+    // isLoading 的 false 由 worker.onmessage 回调负责关闭
+    contextWorker.postMessage({
+        fileNodes: fileNodes.value.map(n => ({ path: n.path, content: n.content })),
+        generateTree: appConfig.generateTree,
+        customPrompt: appConfig.customPrompt,
+        userPrompt: userPrompt.value,
+        longContextThreshold: 8000,
+    });
 }
 
 function handleNodeDelete(fullPath: string, _absPath?: string, originIds?: string[]) {
@@ -241,11 +211,13 @@ async function handleTreeUploadFiles(files: string[], destDir: string) {
                 }
             }
             await processPaths(filesList.value.map(f => f.path));
+            // isLoading 由 worker.onmessage 关闭，这里不再 finally 关闭
+        } else {
+            isLoading.value = false;
         }
     } catch (e) {
         console.error("Upload failed:", e);
         alert(`上传失败: ${e}`);
-    } finally {
         isLoading.value = false;
     }
 }
@@ -422,7 +394,8 @@ function handleWheel(e: WheelEvent) {
         >
           <span v-if="isLoading" class="flex items-center gap-4">
               <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-              深度构建中...
+              <span v-if="appConfig.enableMinimization">正在深度解析并压缩代码...</span>
+              <span v-else>深度构建中...</span>
           </span>
           <span v-else class="flex items-center gap-4">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform group-hover/btn:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
@@ -447,7 +420,7 @@ function handleWheel(e: WheelEvent) {
           <div class="flex flex-col">
               <span class="text-sm font-black text-app-text flex items-center gap-4">
                   输出上下文
-                  <span v-if="outputContext" class="text-[9px] bg-app-text/5 text-app-text px-3 py-0.5 rounded-lg border border-app-text/10 font-black">
+                  <span v-if="outputContext" class="text-[9px] bg-app-bg text-app-text px-3 py-0.5 rounded-lg border border-app-text/10 font-black">
                     {{ totalCharacters.toLocaleString() }} 字
                   </span>
               </span>
@@ -460,8 +433,8 @@ function handleWheel(e: WheelEvent) {
               :class="isEditing ? 'bg-app-primary/5 border-app-primary/30 ring-2 ring-app-primary/5 text-app-primary' : ''"
               :title="isEditing ? '应用更改' : '快速编辑'"
             >
-              <svg v-if="!isEditing" xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+              <svg v-if="!isEditing" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
             </button>
             <button 
               @click="copyToClipboard"
