@@ -62,13 +62,31 @@ async function processPaths(paths: string[]) {
     });
     
     let finalContext = "";
-    if (userPrompt.value.trim()) {
-      finalContext += userPrompt.value.trim() + "\n\n";
-    }
     if (appConfig.customPrompt.trim()) {
+      finalContext += "========================================\n";
+      finalContext += "[SYSTEM SETTINGS]\n";
+      finalContext += "========================================\n";
       finalContext += appConfig.customPrompt.trim() + "\n\n";
     }
+
+    const PENDING_USER_PROMPT = userPrompt.value.trim();
+    const LONG_CONTEXT_THRESHOLD = 8000; // 超过约 8000 字符时，将用户需求置底，防大模型遗忘
+
+    if (PENDING_USER_PROMPT && result.length <= LONG_CONTEXT_THRESHOLD) {
+      finalContext += "========================================\n";
+      finalContext += "[USER REQUIREMENTS]\n";
+      finalContext += "========================================\n";
+      finalContext += PENDING_USER_PROMPT + "\n\n";
+    }
+
     finalContext += result;
+
+    if (PENDING_USER_PROMPT && result.length > LONG_CONTEXT_THRESHOLD) {
+      finalContext += "\n\n========================================\n";
+      finalContext += "[USER REQUIREMENTS]\n";
+      finalContext += "========================================\n";
+      finalContext += PENDING_USER_PROMPT;
+    }
     
     outputContext.value = finalContext;
   } catch (error) {
@@ -206,7 +224,7 @@ async function triggerDirInput() {
       <div class="flex-1 h-48 flex flex-col">
         <textarea 
           v-model="userPrompt"
-          placeholder="在此输入您的自定义需求、提示词...（将自动添加至最终生成的代码上下文最顶部）"
+          placeholder="在此输入您的自定义需求、提示词...（将自动添加至最终生成的代码上下文合适位置）"
           class="w-full h-full p-4 bg-slate-800/30 border-2 border-slate-600 rounded-2xl resize-none text-slate-200 placeholder-slate-400 focus:outline-none focus:border-blue-400 focus:bg-slate-800/50 transition-all font-sans text-sm shadow-sm"
         ></textarea>
       </div>
