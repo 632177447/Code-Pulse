@@ -125,7 +125,7 @@ fn find_project_root(start_path: &Path) -> PathBuf {
     }
 }
 
-pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize) -> Result<String, String> {
+pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize, generate_tree: bool) -> Result<String, String> {
     let mut visited: HashSet<PathBuf> = HashSet::new();
     let mut result_blocks: Vec<String> = Vec::new();
     let mut parsed_paths: Vec<String> = Vec::new();
@@ -157,8 +157,11 @@ pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize) -> Result<Stri
         }
     }
 
-    let tree_str = build_file_tree(&parsed_paths);
-    let mut final_blocks = vec![tree_str];
+    let mut final_blocks = Vec::new();
+    if generate_tree {
+        let tree_str = build_file_tree(&parsed_paths);
+        final_blocks.push(tree_str);
+    }
     final_blocks.extend(result_blocks);
 
     Ok(final_blocks.join("\n\n"))

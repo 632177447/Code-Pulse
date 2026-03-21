@@ -4,11 +4,16 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 const maxDepth = ref(3);
+const generateTree = ref(true);
 const outputContext = ref("");
 const isDragging = ref(false);
 const isLoading = ref(false);
 const filesList = ref<string[]>([]);
 const isSettingsOpen = ref(false);
+
+const fileInput = ref<HTMLInputElement | null>(null);
+const dirInput = ref<HTMLInputElement | null>(null);
+
 let unlistenDragDrop: () => void;
 
 onMounted(async () => {
@@ -39,6 +44,7 @@ async function processPaths(paths: string[]) {
     const result = await invoke<string>("generate_context", {
       paths: paths,
       maxDepth: maxDepth.value,
+      generateTree: generateTree.value,
     });
     outputContext.value = result;
   } catch (error) {
@@ -80,10 +86,44 @@ async function copyToClipboard() {
     console.error(e);
   }
 }
+
+function triggerFileInput() {
+    fileInput.value?.click();
+}
+
+function triggerDirInput() {
+    dirInput.value?.click();
+}
+
+function handleFileInput(e: Event) {
+    const target = e.target as HTMLInputElement;
+    if (!target.files) return;
+    const newPaths: string[] = [];
+    for (let i = 0; i < target.files.length; i++) {
+        const file = target.files[i] as any;
+        if (file.path) newPaths.push(file.path);
+        else newPaths.push(file.name);
+    }
+    target.value = ''; // Reset to allow re-selection
+    if (newPaths.length > 0) {
+        filesList.value = newPaths;
+        processPaths(newPaths);
+    }
+}
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-900 text-slate-100 p-6 flex flex-col items-center font-sans antialiased selection:bg-blue-500/30">
+  <main class="min-h-screen bg-slate-900 text-slate-100 p-6 flex flex-col items-center font-sans antialiased selection:bg-blue-500/30 relative">
+    <button 
+      @click="isSettingsOpen = true"
+      class="absolute top-6 right-6 p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-colors shadow-lg border border-slate-700"
+      title="设置 (Settings)"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    </button>
     <h1 class="text-4xl font-extrabold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent drop-shadow-sm">
       CodePulse 码脉
     </h1>
@@ -91,39 +131,13 @@ async function copyToClipboard() {
       拖拽代码文件或项目目录，一键深度递归解析依赖，自动生成供大语言模型阅读的完整代码上下文。
     </p>
 
-    <!-- Controls -->
-    <div class="w-full max-w-4xl flex items-center justify-between mb-6 bg-slate-800/80 backdrop-blur-md p-4 rounded-xl shadow-xl border border-slate-700/50">
-      <div class="flex items-center space-x-4">
-        <button 
-          @click="isSettingsOpen = true"
-          class="flex items-center space-x-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium rounded-lg transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          <span>设置 (Settings)</span>
-        </button>
-      </div>
-      <button 
-        @click="processPaths(filesList)"
-        :disabled="filesList.length === 0 || isLoading"
-        class="px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-blue-500/20 transition-all active:scale-95"
-      >
-        <span v-if="isLoading" class="flex items-center">
-            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            解析构建中...
-        </span>
-        <span v-else>重新生成上下文</span>
-      </button>
-    </div>
+    <!-- Hidden Native Inputs -->
+    <input type="file" ref="fileInput" multiple @change="handleFileInput" class="hidden" />
+    <input type="file" ref="dirInput" webkitdirectory directory @change="handleFileInput" class="hidden" />
 
     <!-- Drop Zone -->
     <div 
-      class="w-full max-w-4xl h-40 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center transition-all duration-300 mb-6 relative overflow-hidden group shadow-sm bg-slate-800/30"
+      class="w-full max-w-4xl h-48 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center transition-all duration-300 mb-6 relative overflow-hidden group shadow-sm bg-slate-800/30"
       :class="isDragging ? 'border-blue-400 bg-blue-900/10 scale-[1.01] shadow-blue-500/10' : 'border-slate-600 hover:border-slate-400 hover:bg-slate-800/50'"
       @dragover.prevent="isDragging = true"
       @dragleave.prevent="isDragging = false"
@@ -136,12 +150,46 @@ async function copyToClipboard() {
         <p class="text-lg font-medium text-slate-300 group-hover:text-blue-300 transition-colors tracking-wide">
           {{ isDragging ? '松开以解析文件...' : '拖拽 文件 或 项目目录 到此处' }}
         </p>
-        <div v-if="filesList.length > 0 && !isDragging" class="flex flex-wrap gap-2 justify-center max-w-full overflow-hidden">
-            <span v-for="(file, idx) in filesList" :key="idx" class="text-xs bg-slate-700/80 px-2 py-1 rounded border border-slate-600 truncate max-w-[200px] text-slate-300 font-mono">
-                {{ file.split('/').pop()?.split('\\').pop() }}
-            </span>
-        </div>
       </div>
+      <!-- Clickable Actions -->
+      <div v-if="!isDragging" class="flex mt-4 space-x-4 z-20">
+        <button 
+          @click="triggerFileInput"
+          class="px-4 py-1.5 bg-slate-700/80 hover:bg-slate-600 text-sm text-slate-200 font-medium rounded-md shadow-sm border border-slate-600 transition-colors"
+        >
+          📄 选择文件
+        </button>
+        <button 
+          @click="triggerDirInput"
+          class="px-4 py-1.5 bg-slate-700/80 hover:bg-slate-600 text-sm text-slate-200 font-medium rounded-md shadow-sm border border-slate-600 transition-colors"
+        >
+          📁 选择目录
+        </button>
+      </div>
+
+      <div v-if="filesList.length > 0 && !isDragging" class="flex flex-wrap gap-2 justify-center max-w-full overflow-hidden mt-3 z-10 opacity-75 hover:opacity-100 transition-opacity">
+          <span v-for="(file, idx) in filesList" :key="idx" class="text-xs bg-slate-700/80 px-2 py-1 rounded border border-slate-600 truncate max-w-[200px] text-slate-300 font-mono">
+              {{ file.split('/').pop()?.split('\\').pop() }}
+          </span>
+      </div>
+    </div>
+
+    <!-- Controls (Generate Button) -->
+    <div class="w-full max-w-4xl flex justify-center mb-6">
+      <button 
+        @click="processPaths(filesList)"
+        :disabled="filesList.length === 0 || isLoading"
+        class="px-8 py-3 w-full sm:w-auto min-w-50 flex justify-center bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-blue-500/20 transition-all active:scale-95"
+      >
+        <span v-if="isLoading" class="flex items-center">
+            <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            解析构建中...
+        </span>
+        <span v-else class="text-lg">重新生成上下文</span>
+      </button>
     </div>
 
     <!-- Output Area -->
@@ -207,11 +255,19 @@ async function copyToClipboard() {
             </div>
           </div>
           
-          <div class="space-y-2 pt-4 border-t border-slate-700/50">
+          <div class="space-y-4 pt-4 border-t border-slate-700/50">
             <h4 class="text-sm font-semibold text-slate-300">更多设置 (More Settings)</h4>
-            <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-700/50">
-              <p class="text-sm text-slate-500 text-center">未来的设置项将添加到这里...</p>
-            </div>
+            
+            <label class="flex items-center justify-between cursor-pointer p-3 bg-slate-900/50 rounded-lg border border-slate-700/50 hover:bg-slate-900/70 transition-colors">
+              <div class="flex flex-col">
+                <span class="text-sm font-semibold text-slate-200">顶部生成文件树结构</span>
+                <span class="text-xs text-slate-500 mt-0.5">结果中最开头将包含解析目录的层级树状图。</span>
+              </div>
+              <div class="relative">
+                <input type="checkbox" v-model="generateTree" class="sr-only peer">
+                <div class="w-11 h-6 bg-slate-600 rounded-full peer peer-checked:bg-blue-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+              </div>
+            </label>
           </div>
         </div>
         <div class="px-6 py-4 bg-slate-900/50 border-t border-slate-700 flex justify-end">
