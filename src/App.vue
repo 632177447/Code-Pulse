@@ -40,7 +40,6 @@ onMounted(async () => {
   unlistenDragDrop = await getCurrentWebview().onDragDropEvent((event: any) => {
     const { type, position, paths } = event.payload;
 
-    // 关键修正：Tauri 的坐标是物理像素，需要除以缩放比例转换为逻辑像素
     const dpi = window.devicePixelRatio;
     const lx = position ? position.x / dpi : 0;
     const ly = position ? position.y / dpi : 0;
@@ -81,7 +80,6 @@ onMounted(async () => {
             id: Math.random().toString(36).substring(2, 11),
             path: p
           }));
-          // 如果 autoGenerate 为 true，且原本列表为空，则直接替换；否则添加（类似追加行为，但根据原有逻辑 filesList.value = paths 是替换）
           filesList.value = newItems;
           if (appConfig.autoGenerate) processPaths(newItems.map((i: {path: string}) => i.path));
         } else if (nodeZone) {
@@ -121,7 +119,6 @@ async function processPaths(paths: string[]) {
     });
     
     fileNodes.value = result.map(node => {
-        // 在前端为每个解析出的文件节点注入来源上传项的 ID
         const normalize = (p: string) => p.replace(/\\/g, '/').toLowerCase().trim().replace(/^\\\\?\\/, '').replace(/^\/\/\?\//, '').replace(/\/+$/, '');
         const nNodeAbs = normalize(node.abs_path);
         
@@ -179,7 +176,6 @@ function updateOutputContext() {
 
     const PENDING_USER_PROMPT = userPrompt.value.trim();
     const LONG_CONTEXT_THRESHOLD = 8000;
-
     const blocksContent = fileNodes.value.map(n => n.content).join("\n\n");
 
     if (PENDING_USER_PROMPT && blocksContent.length <= LONG_CONTEXT_THRESHOLD) {
@@ -202,17 +198,12 @@ function updateOutputContext() {
 }
 
 function handleNodeDelete(fullPath: string, _absPath?: string, originIds?: string[]) {
-    // 1. 同步过滤 fileNodes (树里的文件)
     fileNodes.value = fileNodes.value.filter(node => 
         !(node.path === fullPath || node.path.startsWith(fullPath + '/'))
     );
-
-    // 2. 联动删除 filesList (用户上传列表)
-    // 根据 ID 列表进行精准过滤：如果 originIds 中包含了某个初始项的 ID，则该项消失
     if (originIds && originIds.length > 0) {
         filesList.value = filesList.value.filter(f => !originIds.includes(f.id));
     }
-
     updateOutputContext();
 }
 
@@ -224,7 +215,6 @@ async function handleTreeUploadFiles(files: string[], destDir: string) {
             destDir: destDir
         });
         if (newPaths && newPaths.length > 0) {
-            // 将新路径添加进 filesList
             for (const p of newPaths) {
                 if (!filesList.value.find(f => f.path === p)) {
                     filesList.value.push({
@@ -233,7 +223,6 @@ async function handleTreeUploadFiles(files: string[], destDir: string) {
                     });
                 }
             }
-            // 无论 autoGenerate 是否开启，都需要更新结果
             await processPaths(filesList.value.map(f => f.path));
         }
     } catch (e) {
@@ -312,163 +301,170 @@ function handleWheel(e: WheelEvent) {
 </script>
 
 <template>
-  <main class="h-screen bg-slate-900 text-slate-100 p-6 flex flex-col items-center font-sans antialiased selection:bg-blue-500/30 relative overflow-y-auto">
-    <button 
-      @click="isSettingsOpen = true"
-      class="absolute top-6 right-6 p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-colors shadow-lg border border-slate-700"
-      title="设置 (Settings)"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    </button>
-    <h1 class="text-4xl font-extrabold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent drop-shadow-sm">
-      CodePulse 码脉
-    </h1>
-    <p class="text-slate-400 mb-8 max-w-lg text-center font-medium">
-      通过代码文件或项目目录，一键解析依赖，生成供 AI 阅读的完整代码上下文。
-    </p>
+  <main class="h-screen flex flex-col items-center p-6 selection:bg-app-primary/10 relative overflow-y-auto">
+    <!-- Header Area -->
+    <div class="w-full max-w-6xl flex justify-between items-center mb-8 shrink-0">
+      <div class="flex flex-col">
+          <h1 class="text-3xl font-black text-app-text tracking-tight flex items-center">
+            CodePulse <span class="ml-2 font-medium opacity-20 text-xl">码脉</span>
+          </h1>
+          <p class="text-app-text-dim text-sm mt-1 font-medium italic opacity-70">
+            优雅解析项目依赖，构建精准提示词上下文
+          </p>
+      </div>
+      <button 
+        @click="isSettingsOpen = true"
+        class="p-2.5 bg-app-surface hover:bg-app-surface-hover text-app-text-dim hover:text-app-primary rounded-xl transition-all shadow-app-md border border-app-border cursor-pointer group"
+        title="设置 (Settings)"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover:rotate-45 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
+    </div>
 
     <!-- Top Section: Drop Zone & User Prompt -->
-    <div class="w-full max-w-6xl flex gap-6 mb-6">
-      <!-- Left: Drop Zone -->
+    <div class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 shrink-0">
+      <!-- Left: Drop Zone Card -->
       <div 
         data-drop-zone="main"
-        class="flex-1 h-48 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center transition-all duration-300 relative overflow-hidden group shadow-sm bg-slate-800/30"
-        :class="isDragging ? 'border-blue-400 bg-blue-900/10 scale-[1.01] shadow-blue-500/10' : 'border-slate-600 hover:border-slate-400 hover:bg-slate-800/50'"
+        class="h-56 rounded-3xl border-2 border-dashed flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden group shadow-app-md bg-app-surface/50 backdrop-blur-sm"
+        :class="isDragging ? 'border-app-primary bg-app-primary-light ring-4 ring-app-primary/5' : 'border-app-border hover:border-app-primary/40 hover:bg-app-surface'"
       >
-        <div class="pointer-events-none flex flex-col items-center space-y-3 z-10 w-full px-4">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-slate-400 group-hover:text-blue-400 transition-colors drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-          </svg>
-          <p class="text-lg font-medium text-slate-300 group-hover:text-blue-300 transition-colors tracking-wide">
-            {{ isDragging ? '松开以解析文件...' : '拖拽 文件 或 目录' }}
+        <div class="pointer-events-none flex flex-col items-center space-y-3 z-10 w-full px-6">
+          <div class="w-12 h-12 flex items-center justify-center bg-app-bg rounded-2xl shadow-sm group-hover:bg-app-primary group-hover:scale-110 transition-all duration-500">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-app-text-mute group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+          </div>
+          <p class="text-base font-bold text-app-text-dim group-hover:text-app-text transition-colors tracking-tight">
+            {{ isDragging ? '松开即刻解析...' : '拖入项目文件夹或代码文件' }}
           </p>
-        </div>
-        <!-- Clickable Actions -->
-        <div v-if="!isDragging" class="flex mt-4 space-x-4 z-20">
-          <button 
-            @click="triggerFileInput"
-            class="px-4 py-1.5 bg-slate-700/80 hover:bg-slate-600 text-sm text-slate-200 font-medium rounded-md shadow-sm border border-slate-600 transition-colors"
-          >
-            📄 文件
-          </button>
-          <button 
-            @click="triggerDirInput"
-            class="px-4 py-1.5 bg-slate-700/80 hover:bg-slate-600 text-sm text-slate-200 font-medium rounded-md shadow-sm border border-slate-600 transition-colors"
-          >
-            📁 目录
-          </button>
+          <div v-if="!isDragging" class="flex gap-2 pt-1">
+              <button @click="triggerFileInput" class="px-3 py-1 bg-app-bg text-[11px] font-bold text-app-text-dim hover:text-app-text border border-app-border rounded-lg hover:border-app-primary/50 transition-all cursor-pointer shadow-sm">添加文件</button>
+              <button @click="triggerDirInput" class="px-3 py-1 bg-app-bg text-[11px] font-bold text-app-text-dim hover:text-app-text border border-app-border rounded-lg hover:border-app-primary/50 transition-all cursor-pointer shadow-sm">添加目录</button>
+          </div>
         </div>
 
+        <!-- Files List Overlay -->
         <div v-if="filesList.length > 0 && !isDragging" 
             ref="fileListContainer"
             @wheel="handleWheel"
-            class="flex items-center gap-2 w-full overflow-x-auto px-6 mt-3 z-10 opacity-90 custom-scrollbar-h pb-2"
+            class="flex items-center gap-2 w-full overflow-x-auto px-6 mt-4 z-10 custom-scrollbar-h pb-3"
         >
             <div 
               v-for="(file, idx) in filesList" 
               :key="idx" 
               @click="removeFile(idx)"
-              class="group/item flex items-center shrink-0 text-xs bg-slate-700/80 px-2.5 py-1.5 rounded-lg border border-slate-600 hover:border-red-500/50 hover:bg-slate-700 transition-all cursor-pointer text-slate-300 font-mono select-none"
-              title="点击移除此文件/目录"
+              class="group/item flex items-center shrink-0 text-[10px] bg-app-surface px-3 py-1.5 rounded-xl border border-app-border hover:border-app-rose/40 hover:bg-app-rose/5 transition-all cursor-pointer text-app-text-dim font-mono select-none shadow-sm"
+              title="点击移除"
             >
-                <span class="truncate max-w-45 group-hover/item:text-red-400">
+                <span class="truncate max-w-32 group-hover/item:text-app-rose">
                     {{ file.path.split('/').pop()?.split('\\').pop() }}
                 </span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 ml-1.5 text-slate-500 group-hover/item:text-red-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-2 text-app-text-mute group-hover/item:text-app-rose transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </div>
         </div>
       </div>
 
-      <!-- Right: User Prompt Textarea -->
-      <div class="flex-1 h-48 flex flex-col">
+      <!-- Right: User Prompt Card -->
+      <div class="h-56 rounded-3xl bg-app-surface shadow-app-md border border-app-border overflow-hidden flex flex-col group focus-within:ring-4 focus-within:ring-app-primary/5 transition-all">
+        <div class="px-5 py-2.5 bg-app-bg/30 border-b border-app-border flex items-center justify-between">
+            <span class="text-[11px] font-black uppercase tracking-widest text-app-text-mute group-focus-within:text-app-primary transition-colors">附加提示词 / 需求</span>
+            <div class="flex gap-1">
+                <div class="w-1.5 h-1.5 rounded-full bg-app-border"></div>
+                <div class="w-1.5 h-1.5 rounded-full bg-app-border"></div>
+            </div>
+        </div>
         <textarea 
           v-model="userPrompt"
-          placeholder="在此输入您的自定义需求、提示词...（将自动添加至最终生成的代码上下文的合适位置）"
-          class="w-full h-full p-4 bg-slate-800/30 border-2 border-slate-600 rounded-2xl resize-none text-slate-200 placeholder-slate-400 focus:outline-none focus:border-blue-400 focus:bg-slate-800/50 transition-all font-sans text-sm shadow-sm"
+          placeholder="例如：请作为核心开发者对这些逻辑做 Code Review；或指定特定功能模块的重构需求..."
+          class="w-full flex-1 p-5 resize-none text-app-text placeholder:text-app-text-mute bg-transparent focus:outline-none font-sans text-sm leading-relaxed"
         ></textarea>
       </div>
     </div>
 
-    <!-- Controls (Generate Button) -->
-    <div class="w-full max-w-6xl flex justify-center mb-6">
-      <button 
-        @click="processPaths(filesList.map(f => f.path))"
-        :disabled="filesList.length === 0 || isLoading"
-        class="h-[52px] px-8 w-full sm:w-auto min-w-50 flex items-center justify-center bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-blue-500/20 transition-all active:scale-95"
-      >
-        <span v-if="isLoading" class="flex items-center text-lg">
-            <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            解析构建中...
-        </span>
-        <span v-else class="text-lg">重新生成上下文</span>
-      </button>
+    <!-- Generate Control Area -->
+    <div class="w-full max-w-6xl mb-8 flex justify-center shrink-0">
+        <button 
+          @click="processPaths(filesList.map(f => f.path))"
+          :disabled="filesList.length === 0 || isLoading"
+          class="h-14 px-12 group/btn bg-app-text hover:bg-app-primary text-app-bg font-black rounded-2xl shadow-xl shadow-app-text/10 transition-all active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed flex items-center gap-3"
+        >
+          <span v-if="isLoading" class="flex items-center gap-2">
+              <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              深度构建中...
+          </span>
+          <span v-else class="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform group-hover/btn:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+              即刻生成完整上下文
+          </span>
+        </button>
     </div>
 
-    <!-- Output Area -->
-    <div class="w-full max-w-6xl relative flex-1 flex min-h-[380px] gap-4 mb-4">
-      
-      <!-- Tree Component Sidebar -->
+    <!-- Bottom: Results Area -->
+    <div class="w-full max-w-6xl flex-1 flex min-h-[420px] gap-6 mb-4 overflow-hidden">
+      <!-- Left: Sidebar Tree -->
       <DependencyTreeSidebar 
         :fileNodes="fileNodes" 
+        class="w-80"
         @delete="(fp, ap, ids) => handleNodeDelete(fp, ap, ids)" 
         @upload-files="handleTreeUploadFiles"
       />
 
-      <!-- Context Textarea -->
-      <div class="flex-1 flex flex-col relative w-full overflow-hidden">
-        <div class="flex justify-between items-center bg-slate-800/80 backdrop-blur-md px-4 py-2.5 border-t border-x border-slate-700 rounded-t-xl z-10">
-          <span class="text-sm font-semibold text-slate-400 flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-              输出上下文
-              <span v-if="outputContext" class="ml-3 text-[10px] bg-slate-700/50 px-2 py-0.5 rounded-full border border-slate-600/50 text-slate-400 font-mono">
-                {{ totalCharacters.toLocaleString() }} 字
+      <!-- Right: Main Context Output -->
+      <div class="flex-1 flex flex-col bg-app-surface border border-app-border rounded-3xl overflow-hidden shadow-app-md relative">
+        <div class="px-6 py-4 bg-app-surface/80 border-b border-app-border flex justify-between items-center backdrop-blur-xl shrink-0 z-10">
+          <div class="flex flex-col">
+              <span class="text-sm font-black text-app-text flex items-center gap-2">
+                  上下文视图
+                  <span v-if="outputContext" class="text-[9px] bg-app-text/5 text-app-text px-2 py-0.5 rounded-full border border-app-text/10 font-black">
+                    {{ totalCharacters.toLocaleString() }} CHR
+                  </span>
               </span>
-          </span>
+              <span class="text-[10px] text-app-text-mute font-medium">包含架构预览与完整代码实现</span>
+          </div>
           <div class="flex items-center space-x-2">
             <button 
               v-if="outputContext"
               @click="toggleEdit"
-              class="p-2 bg-slate-700 hover:bg-slate-600 rounded-md transition-colors"
-              :class="isEditing ? 'bg-blue-600/60 ring-1 ring-blue-500/50' : ''"
-              :title="isEditing ? '保存并退出编辑' : '编辑内容'"
+              class="p-2 bg-app-surface hover:bg-app-surface-hover text-app-text-dim hover:text-app-primary rounded-xl transition-all border border-app-border cursor-pointer"
+              :class="isEditing ? 'bg-app-primary/5 border-app-primary/30 ring-2 ring-app-primary/5 text-app-primary' : ''"
+              :title="isEditing ? '应用更改' : '快速编辑'"
             >
-              <svg v-if="!isEditing" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+              <svg v-if="!isEditing" xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
             </button>
             <button 
               @click="copyToClipboard"
-              class="p-2 bg-slate-700 hover:bg-slate-600 rounded-md transition-colors active:bg-slate-800"
-              title="一键复制"
+              class="p-2 py-1.5 bg-app-text hover:bg-app-text/90 text-app-bg text-[11px] font-black rounded-lg transition-all active:scale-95 flex items-center gap-1.5 shadow-sm"
+              title="复制全部"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+              复制
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
             </button>
           </div>
         </div>
+        
         <textarea 
           ref="outputAreaRef"
           :readonly="!isEditing"
           v-model="outputContext"
-          placeholder="解析后的所有代码将合并展示在这里..."
-          class="w-full flex-1 p-4 border rounded-b-xl focus:outline-none font-mono text-sm leading-relaxed resize-none shadow-inner z-0 transition-all duration-300"
-          :class="isEditing ? 'bg-[#161b22] border-blue-500/50 text-slate-100 ring-1 ring-blue-500/20' : 'bg-[#0d1117] border-slate-700 text-green-400'"
+          placeholder="所有的上下文内容都在这里准备就绪..."
+          class="w-full flex-1 p-6 focus:outline-none font-mono text-[13px] leading-relaxed resize-none transition-all duration-300 z-0 bg-transparent text-app-text placeholder:text-app-text-mute"
+          :class="isEditing ? 'bg-app-primary/5' : ''"
         ></textarea>
         
         <!-- Loading Overlay -->
-        <div v-if="isLoading" class="absolute inset-0 top-[45px] flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-sm rounded-b-xl z-20">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-          <p class="text-blue-300 font-medium tracking-widest animate-pulse">深度分析中，请耐心等待...</p>
+        <div v-if="isLoading" class="absolute inset-0 bg-app-surface/60 backdrop-blur-md flex flex-col items-center justify-center z-20 pointer-events-none transition-all">
+          <div class="relative w-12 h-12 mb-4">
+             <div class="absolute inset-0 rounded-full border-4 border-app-primary/10"></div>
+             <div class="absolute inset-0 rounded-full border-4 border-t-app-primary animate-spin"></div>
+          </div>
+          <p class="text-app-primary font-black tracking-widest text-xs uppercase animate-pulse">正在精析依赖系统</p>
         </div>
       </div>
     </div>
@@ -483,10 +479,10 @@ function handleWheel(e: WheelEvent) {
 </template>
 
 <style>
-/* 全局滚动条美化 - 极简现代风格 */
+/* 全局外观优化 */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -494,54 +490,31 @@ function handleWheel(e: WheelEvent) {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.4); /* slate-500 */
-  border-radius: 20px;
-  border: 3px solid transparent; /* 通过透明边框实现内边距效果 */
-  background-clip: content-box;
-  cursor: pointer;
+  background: var(--color-app-border);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.6); /* slate-400 */
-  border-width: 2px; /* 悬停时稍微变胖一点，暗示可交互 */
-  cursor: pointer;
+  background: var(--color-app-text-mute);
 }
 
-/* 针对特定深色背景容器的微调 */
-textarea::-webkit-scrollbar-track, 
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: #0d1117; 
-  border-bottom-right-radius: 0.75rem;
-}
-
-textarea::-webkit-scrollbar-thumb,
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.3);
-}
-
-/* 水平滚动条美化 */
 .custom-scrollbar-h::-webkit-scrollbar {
   height: 4px;
 }
 
 .custom-scrollbar-h::-webkit-scrollbar-track {
   background: transparent;
-  margin: 0 20px;
+  margin: 0 40px;
 }
 
 .custom-scrollbar-h::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.3);
-  border-radius: 10px;
+  background: var(--color-app-border);
 }
 
-.custom-scrollbar-h::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.5);
-}
-
-/* 拖拽到树节点的高亮样式 */
+/* 拖拽反馈样式 */
 .drop-node-hover {
-  background-color: rgba(59, 130, 246, 0.3) !important;
-  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.5);
-  border-radius: 6px;
+  background-color: var(--color-app-primary-light) !important;
+  box-shadow: 0 0 0 1px var(--color-app-primary) inset;
+  border-radius: 12px;
 }
 </style>

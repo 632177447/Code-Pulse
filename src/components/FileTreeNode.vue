@@ -37,35 +37,36 @@ function bubbleDelete(fullPath: string, absPath: string, originIds?: string[]) {
 </script>
 
 <template>
-  <div class="pl-2 mt-0.5 select-none"
+  <div class="px-3"
     :data-drop-path="node.isDirectory ? node.absPath : node.absPath.substring(0, Math.max(node.absPath.lastIndexOf('/'), node.absPath.lastIndexOf('\\')))"
   >
     <div 
-      class="flex items-center justify-between group py-1 px-1.5 rounded-md hover:bg-slate-700/50 cursor-pointer transition-colors"
+      class="flex items-center justify-between group py-1 px-2 rounded-xl hover:bg-app-bg transition-all duration-300 cursor-pointer"
+      :class="node.isDirectory ? 'mb-0.5' : ''"
       @click="toggle"
     >
-      <div class="flex items-center space-x-1.5 overflow-hidden">
-        <span class="text-slate-400 w-4 flex justify-center">
+      <div class="flex items-center space-x-2.5 overflow-hidden">
+        <span class="text-app-text-mute w-4 flex justify-center group-hover:text-app-primary transition-colors">
             <template v-if="node.isDirectory">
-              <svg v-if="isExpandedLocal" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+              <svg v-if="isExpandedLocal" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
             </template>
             <template v-else>
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
             </template>
         </span>
-        <span class="truncate text-[13px]" :class="node.isDirectory ? 'font-medium text-slate-200' : 'text-slate-400 font-mono'">{{ node.name }}</span>
+        <span class="truncate text-[13px] tracking-tight transition-colors" :class="node.isDirectory ? 'font-bold text-app-text italic' : 'text-app-text-dim font-medium group-hover:text-app-text'">{{ node.name }}</span>
       </div>
       <button 
         @click.stop="handleDelete"
-        class="opacity-0 group-hover:opacity-100 p-1 mr-1 text-slate-500 hover:text-red-400 hover:bg-slate-600/50 transition-all rounded shadow-sm"
-        title="移除此节点 (右侧上下文将自动更新)"
+        class="opacity-0 group-hover:opacity-100 p-1.5 text-app-text-mute hover:text-app-rose hover:bg-app-rose/10 transition-all rounded-lg"
+        title="移除"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
       </button>
     </div>
     
-    <div v-show="node.isDirectory && isExpandedLocal" class="border-l border-slate-700/50 ml-1.5">
+    <div v-show="node.isDirectory && isExpandedLocal" class="border-l border-app-border ml-3.5 pl-1 transition-all">
       <FileTreeNode
         v-for="child in node.children"
         :key="child.fullPath"

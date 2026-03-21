@@ -2,16 +2,6 @@
 import { computed } from 'vue';
 import FileTreeNode from './FileTreeNode.vue';
 
-interface TreeNode {
-  name: string;
-  fullPath: string;
-  absPath: string;
-  originIds: string[]; // 收集该节点下所有的原始来源 ID
-  isDirectory: boolean;
-  isExpanded: boolean;
-  children: Record<string, TreeNode>;
-}
-
 const props = defineProps<{
   nodes: {path: string, content: string, abs_path: string, originId?: string}[];
 }>();
@@ -22,12 +12,8 @@ const emit = defineEmits<{
   (e: 'updateDropTarget', target: string | null): void;
 }>();
 
-// 将 flat paths 构建成树状对象
-// 将 flat paths 构建成树状对象
 const root = computed(() => {
-  const tree: Record<string, TreeNode> = {};
-  
-  // 确保按字典序或者层级显示比较好，但路径一般已经是排好序的
+  const tree: Record<string, any> = {};
   const sortedNodes = [...props.nodes].sort((a, b) => a.path.localeCompare(b.path));
 
   function getDirname(p: string) {
@@ -64,7 +50,6 @@ const root = computed(() => {
         };
       }
       
-      // 聚合 ID：只要该目录下包含这个原始来源的文件，该目录就记录该 ID
       if (node.originId && !currentLevel[part].originIds.includes(node.originId)) {
         currentLevel[part].originIds.push(node.originId);
       }
@@ -86,9 +71,12 @@ function handleUploadFiles(files: string[], destDir: string) {
 </script>
 
 <template>
-  <div class="file-tree w-full h-full overflow-y-auto overflow-x-hidden text-sm text-slate-300 pr-1 pb-2">
-    <div v-if="nodes.length === 0" class="text-slate-500 text-xs italic p-4 text-center">
-        暂无依赖文件
+  <div class="file-tree w-full h-full overflow-y-auto overflow-x-hidden text-sm text-app-text pr-1 pb-4">
+    <div v-if="nodes.length === 0" class="flex flex-col items-center justify-center p-8 space-y-4">
+        <div class="w-12 h-12 bg-app-bg rounded-2xl flex items-center justify-center border border-app-border opacity-30 shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+        </div>
+        <p class="text-xs text-app-text-mute font-bold italic">未在此分支检测到解析依赖</p>
     </div>
     <FileTreeNode
       v-for="node in root"
@@ -103,16 +91,16 @@ function handleUploadFiles(files: string[], destDir: string) {
 
 <style scoped>
 .file-tree::-webkit-scrollbar {
-  width: 6px;
+  width: 3px;
 }
 .file-tree::-webkit-scrollbar-track {
   background: transparent;
 }
 .file-tree::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 3px;
+  background: var(--color-app-border);
+  border-radius: 10px;
 }
 .file-tree::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--color-app-text-mute);
 }
 </style>
