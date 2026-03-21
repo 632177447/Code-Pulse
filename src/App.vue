@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, reactive } from "vue";
+import { ref, onMounted, onUnmounted, reactive, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -11,6 +11,10 @@ const isLoading = ref(false);
 const filesList = ref<string[]>([]);
 const isSettingsOpen = ref(false);
 const userPrompt = ref("");
+
+const totalCharacters = computed(() => {
+  return outputContext.value ? outputContext.value.length : 0;
+});
 
 
 const appConfig = reactive({
@@ -254,6 +258,9 @@ async function triggerDirInput() {
         <span class="text-sm font-semibold text-slate-400 flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
             输出上下文 (Generated Context)
+            <span v-if="outputContext" class="ml-3 text-[10px] bg-slate-700/50 px-2 py-0.5 rounded-full border border-slate-600/50 text-slate-400 font-mono">
+              {{ totalCharacters.toLocaleString() }} 字
+            </span>
         </span>
         <button 
           @click="copyToClipboard"
