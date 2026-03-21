@@ -482,7 +482,7 @@ pub struct FileNode {
     pub abs_path: String,
 }
 
-pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize, generate_tree: bool, ignore_exts: String, ignore_deep_parse: String, included_types: Vec<String>, project_roots: String, enable_minimization: bool) -> Result<Vec<FileNode>, String> {
+pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize, ignore_exts: String, ignore_deep_parse: String, included_types: Vec<String>, project_roots: String, enable_minimization: bool) -> Result<Vec<FileNode>, String> {
     let mut visited: HashSet<PathBuf> = HashSet::new();
     let mut result_blocks: Vec<FileNode> = Vec::new();
     let mut parsed_paths: Vec<String> = Vec::new();
@@ -551,28 +551,6 @@ pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize, generate_tree:
     }
 
     Ok(result_blocks)
-}
-
-fn build_file_tree(paths: &[String]) -> String {
-    let mut tree = String::from("========================================\n[FILE TREE]\n========================================\n.\n");
-    let mut sorted_paths = paths.to_vec();
-    sorted_paths.sort();
-    
-    let mut prev_components: Vec<String> = Vec::new();
-    for path in &sorted_paths {
-        let components: Vec<String> = path.split('/').map(|s| s.to_string()).collect();
-        let mut i = 0;
-        while i < components.len() && i < prev_components.len() && components[i] == prev_components[i] {
-            i += 1;
-        }
-        while i < components.len() {
-            let indent = "│   ".repeat(i);
-            tree.push_str(&format!("{}├── {}\n", indent, components[i]));
-            i += 1;
-        }
-        prev_components = components;
-    }
-    tree
 }
 
 fn should_ignore(

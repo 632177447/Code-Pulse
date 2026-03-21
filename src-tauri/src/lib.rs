@@ -4,11 +4,11 @@ use std::path::Path;
 use std::fs;
 
 #[tauri::command]
-async fn generate_context(paths: Vec<String>, max_depth: usize, generate_tree: bool, ignore_exts: String, ignore_deep_parse: String, included_types: Vec<String>, project_roots: String, enable_minimization: bool) -> Result<Vec<analyzer::FileNode>, String> {
+async fn generate_context(paths: Vec<String>, max_depth: usize, ignore_exts: String, ignore_deep_parse: String, included_types: Vec<String>, project_roots: String, enable_minimization: bool) -> Result<Vec<analyzer::FileNode>, String> {
     // 将 CPU 密集型的同步文件遍历移到专用 blocking 线程池
     // 避免占用 Tauri 的异步调度线程，从而解除对 webview IPC 通道的阻塞
     tauri::async_runtime::spawn_blocking(move || {
-        analyzer::analyze_dependencies(paths, max_depth, generate_tree, ignore_exts, ignore_deep_parse, included_types, project_roots, enable_minimization)
+        analyzer::analyze_dependencies(paths, max_depth, ignore_exts, ignore_deep_parse, included_types, project_roots, enable_minimization)
     }).await.map_err(|e| e.to_string())?
 }
 
