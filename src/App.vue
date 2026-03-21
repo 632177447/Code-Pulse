@@ -29,6 +29,7 @@ const appConfig = reactive({
   generateTree: true,
   autoGenerate: true,
   includedTypes: ["vue", "ts", "js", "rs", "py", "go", "json", "md", "html", "css"],
+  customIncludedTypes: "",
 });
 
 let unlistenDragDrop: () => void;
@@ -60,13 +61,20 @@ async function processPaths(paths: string[]) {
   if (paths.length === 0) return;
   isLoading.value = true;
   try {
+    const customTypesArray = appConfig.customIncludedTypes
+      .split(/[,\n]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+      .map(s => s.startsWith('.') ? s.substring(1) : s);
+    const finalIncludedTypes = Array.from(new Set([...appConfig.includedTypes, ...customTypesArray]));
+
     const result = await invoke<Array<{path: string, content: string}>>("generate_context", {
       paths: paths,
       maxDepth: appConfig.maxDepth,
       generateTree: appConfig.generateTree,
       ignoreExts: appConfig.ignoreExts,
       ignoreDeepParse: appConfig.ignoreDeepParse,
-      includedTypes: appConfig.includedTypes,
+      includedTypes: finalIncludedTypes,
     });
     
     fileNodes.value = result;

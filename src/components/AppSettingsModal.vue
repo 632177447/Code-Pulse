@@ -60,6 +60,11 @@ const settingsGroups = [
         ]
       },
       {
+        id: 'customIncludedTypes',
+        type: 'input',
+        placeholder: '在此输入其他自定义后缀名 (例如: sh, yaml, xml)'
+      },
+      {
         id: 'customPrompt',
         type: 'textarea',
         label: '自定义提示词',

@@ -16,8 +16,8 @@ const value = computed({
 
 <template>
   <!-- Slider -->
-  <div v-if="config.type === 'slider'" class="space-y-1.5">
-    <label :for="config.id" class="block text-sm font-semibold text-slate-300">{{ config.label }}</label>
+  <div v-if="config.type === 'slider'" :class="['w-full', config.label ? 'space-y-1.5' : '']">
+    <label v-if="config.label" :for="config.id" class="block text-sm font-semibold text-slate-300">{{ config.label }}</label>
     <p v-if="config.description" class="text-xs text-slate-500 pb-1">{{ config.description }}</p>
     <div class="flex items-center space-x-3">
       <input 
@@ -33,8 +33,8 @@ const value = computed({
   </div>
 
   <!-- Input -->
-  <div v-else-if="config.type === 'input'" class="space-y-1.5 mt-3.5">
-    <label :for="config.id" class="block text-sm font-semibold text-slate-300">{{ config.label }}</label>
+  <div v-else-if="config.type === 'input'" :class="['w-full', config.label ? 'space-y-1.5 mt-3.5' : 'mt-1.5']">
+    <label v-if="config.label" :for="config.id" class="block text-sm font-semibold text-slate-300">{{ config.label }}</label>
     <p v-if="config.description" class="text-xs text-slate-500 pb-1">{{ config.description }}</p>
     <input 
       :id="config.id"
@@ -46,8 +46,8 @@ const value = computed({
   </div>
 
   <!-- Textarea -->
-  <div v-else-if="config.type === 'textarea'" class="space-y-1.5 mt-3.5">
-    <label :for="config.id" class="block text-sm font-semibold text-slate-300">{{ config.label }}</label>
+  <div v-else-if="config.type === 'textarea'" :class="['w-full', config.label ? 'space-y-1.5 mt-3.5' : 'mt-1.5']">
+    <label v-if="config.label" :for="config.id" class="block text-sm font-semibold text-slate-300">{{ config.label }}</label>
     <p v-if="config.description" class="text-xs text-slate-500 pb-1">{{ config.description }}</p>
     <textarea 
       :id="config.id"
@@ -59,9 +59,9 @@ const value = computed({
   </div>
 
   <!-- Switch -->
-  <label v-else-if="config.type === 'switch'" class="flex items-center justify-between cursor-pointer p-2.5 bg-slate-900/50 rounded-md border border-slate-700/50 hover:bg-slate-900/70 transition-colors mt-3.5">
+  <label v-else-if="config.type === 'switch'" :class="['flex items-center justify-between cursor-pointer p-2.5 bg-slate-900/50 rounded-md border border-slate-700/50 hover:bg-slate-900/70 transition-colors', config.label ? 'mt-3.5' : 'mt-1.5']">
     <div class="flex flex-col">
-      <span class="text-sm font-semibold text-slate-200">{{ config.label }}</span>
+      <span v-if="config.label" class="text-sm font-semibold text-slate-200">{{ config.label }}</span>
       <span v-if="config.description" class="text-xs text-slate-500 mt-0.5">{{ config.description }}</span>
     </div>
     <div class="relative">
@@ -71,8 +71,8 @@ const value = computed({
   </label>
 
   <!-- Radio -->
-  <div v-else-if="config.type === 'radio'" class="space-y-1.5 mt-3.5 inline-block w-full">
-    <label class="block text-sm font-semibold text-slate-300">{{ config.label }}</label>
+  <div v-else-if="config.type === 'radio'" :class="['inline-block w-full', config.label ? 'space-y-1.5 mt-3.5' : 'mt-1.5']">
+    <label v-if="config.label" class="block text-sm font-semibold text-slate-300">{{ config.label }}</label>
     <p v-if="config.description" class="text-xs text-slate-500 pb-1">{{ config.description }}</p>
     <div class="flex gap-6">
       <label v-for="opt in config.options" :key="opt.value" class="flex items-center space-x-2 cursor-pointer">
@@ -83,8 +83,8 @@ const value = computed({
   </div>
 
   <!-- Checkbox -->
-  <div v-else-if="config.type === 'checkbox'" class="space-y-1.5 mt-3.5 inline-block w-full">
-    <label class="block text-sm font-semibold text-slate-300">{{ config.label }}</label>
+  <div v-else-if="config.type === 'checkbox'" :class="['inline-block w-full', config.label ? 'space-y-1.5 mt-3.5' : 'mt-1.5']">
+    <label v-if="config.label" class="block text-sm font-semibold text-slate-300">{{ config.label }}</label>
     <p v-if="config.description" class="text-xs text-slate-500 pb-1">{{ config.description }}</p>
     <div class="flex flex-wrap gap-6">
       <label v-for="opt in config.options" :key="opt.value" class="flex items-center space-x-2 cursor-pointer">
