@@ -31,6 +31,7 @@ const appConfig = reactive({
   autoGenerate: true,
   customIncludedTypes: "",
   projectRoots: "",
+  enableMinimization: true,
 });
 let unlistenDragDrop: () => void;
 let lastHighlightedNode: HTMLElement | null = null;
@@ -116,6 +117,7 @@ async function processPaths(paths: string[]) {
       ignoreDeepParse: appConfig.ignoreDeepParse,
       includedTypes: finalIncludedTypes,
       projectRoots: appConfig.projectRoots,
+      enableMinimization: appConfig.enableMinimization,
     });
     
     fileNodes.value = result.map(node => {
@@ -199,7 +201,7 @@ function updateOutputContext() {
     outputContext.value = finalContext;
 }
 
-function handleNodeDelete(fullPath: string, absPath?: string, originIds?: string[]) {
+function handleNodeDelete(fullPath: string, _absPath?: string, originIds?: string[]) {
     // 1. 同步过滤 fileNodes (树里的文件)
     fileNodes.value = fileNodes.value.filter(node => 
         !(node.path === fullPath || node.path.startsWith(fullPath + '/'))
@@ -372,7 +374,7 @@ function handleWheel(e: WheelEvent) {
               class="group/item flex items-center shrink-0 text-xs bg-slate-700/80 px-2.5 py-1.5 rounded-lg border border-slate-600 hover:border-red-500/50 hover:bg-slate-700 transition-all cursor-pointer text-slate-300 font-mono select-none"
               title="点击移除此文件/目录"
             >
-                <span class="truncate max-w-[180px] group-hover/item:text-red-400">
+                <span class="truncate max-w-45 group-hover/item:text-red-400">
                     {{ file.path.split('/').pop()?.split('\\').pop() }}
                 </span>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 ml-1.5 text-slate-500 group-hover/item:text-red-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -395,7 +397,7 @@ function handleWheel(e: WheelEvent) {
     <!-- Controls (Generate Button) -->
     <div class="w-full max-w-6xl flex justify-center mb-6">
       <button 
-        @click="processPaths(filesList.map((f: {path: string}) => f.path))"
+        @click="processPaths(filesList.map(f => f.path))"
         :disabled="filesList.length === 0 || isLoading"
         class="h-[52px] px-8 w-full sm:w-auto min-w-50 flex items-center justify-center bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-blue-500/20 transition-all active:scale-95"
       >

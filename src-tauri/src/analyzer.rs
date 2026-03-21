@@ -1,3 +1,4 @@
+use crate::minimizer;
 use regex::Regex;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -481,7 +482,7 @@ pub struct FileNode {
     pub abs_path: String,
 }
 
-pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize, generate_tree: bool, ignore_exts: String, ignore_deep_parse: String, included_types: Vec<String>, project_roots: String) -> Result<Vec<FileNode>, String> {
+pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize, generate_tree: bool, ignore_exts: String, ignore_deep_parse: String, included_types: Vec<String>, project_roots: String, enable_minimization: bool) -> Result<Vec<FileNode>, String> {
     let mut visited: HashSet<PathBuf> = HashSet::new();
     let mut result_blocks: Vec<FileNode> = Vec::new();
     let mut parsed_paths: Vec<String> = Vec::new();
@@ -537,7 +538,7 @@ pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize, generate_tree:
                         process_file(e_path, 0, max_depth, &mut visited, &mut result_blocks, &mut parsed_paths, &base_path, 
                             &ignore_names, &ignore_extensions, &ignore_filenames, &ignore_regexes,
                             &ignore_deep_names, &ignore_deep_extensions, &ignore_deep_filenames, &ignore_deep_regexes,
-                            &included_types_set);
+                            &included_types_set, enable_minimization);
                     }
                 }
             }
@@ -545,7 +546,7 @@ pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize, generate_tree:
             process_file(path, 0, max_depth, &mut visited, &mut result_blocks, &mut parsed_paths, &base_path, 
                 &ignore_names, &ignore_extensions, &ignore_filenames, &ignore_regexes,
                 &ignore_deep_names, &ignore_deep_extensions, &ignore_deep_filenames, &ignore_deep_regexes,
-                &included_types_set);
+                &included_types_set, enable_minimization);
         }
     }
 
@@ -636,7 +637,8 @@ fn process_file(
     ignore_deep_extensions: &HashSet<String>,
     ignore_deep_filenames: &HashSet<String>,
     ignore_deep_regexes: &[Regex],
-    included_types: &HashSet<String>
+    included_types: &HashSet<String>,
+    enable_minimization: bool
 ) {
     if current_depth > max_depth || !path.exists() { return; }
     
@@ -668,11 +670,23 @@ fn process_file(
 
         parsed_paths.push(display_path_str.clone());
 
+        let mut final_content = content.clone();
+        if enable_minimization && current_depth > 0 {
+            // Only minimize for JS/TS/Rust/Go/Java/C++ etc. (bracket-based languages)
+            let ext = abs_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            match ext {
+                "js" | "mjs" | "jsx" | "ts" | "tsx" | "rs" | "go" | "java" | "kt" | "c" | "cpp" | "h" | "hpp" | "cs" | "php" | "css" | "scss" | "less" => {
+                    final_content = minimizer::minimize_code(&content);
+                }
+                _ => {}
+            }
+        }
+
         result_blocks.push(FileNode {
             path: display_path_str.clone(),
             content: format!(
                 "========================================\n[FILE PATH]: {}\n(Dependency Layer: {})\n========================================\n[CONTENT START]\n{}\n[CONTENT END]", 
-                display_path_str, current_depth, content
+                display_path_str, current_depth, final_content
             ),
             abs_path: abs_path.to_string_lossy().into_owned(),
         });
@@ -686,7 +700,7 @@ fn process_file(
                     process_file(&resolved, current_depth + 1, max_depth, visited, result_blocks, parsed_paths, base_path, 
                         ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
                         ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes,
-                        included_types);
+                        included_types, enable_minimization);
                 }
             }
         }

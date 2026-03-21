@@ -112,6 +112,12 @@ const settingsGroups = [
         rows: 3
       },
       {
+        id: 'enableMinimization',
+        type: 'switch',
+        label: '开启依赖代码精简',
+        description: '仅对间接依赖文件生效。自动移除函数实现体，仅保留函数签名定义，从而大幅减少上下文长度。'
+      },
+      {
         id: 'projectRoots',
         type: 'textarea',
         label: '指定根目录',
