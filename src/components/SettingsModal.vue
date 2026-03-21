@@ -85,7 +85,7 @@ function close() {
           @click="close" 
           class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-md shadow-md transition-colors"
         >
-          完成 (Done)
+          保存
         </button>
       </div>
     </div>
