@@ -1,10 +1,12 @@
-# CodePulse (文脉) 🚀
+# CodePulse (文脉)
 
 ![CodePulse Preview](./docs/assets/pic1.png)
 
 **CodePulse (文脉)** 是一款专为大语言模型 (LLM) 设计的高效代码上下文生成工具。它能跨越 20+ 种编程语言，深度递归地解析文件内所有的 `import`、`require`、`use` 等依赖，将分散在项目各处的逻辑自动化地汇聚成一份层级分明、结构化的文本块。
 
 它是开发者向 AI 发送代码 Prompt 的最佳拍档，通过极简的交互提升 AI 对复杂工程的理解能力。
+
+[**立即下载最新版本**](https://github.com/632177447/Code-Pulse/releases) 🚀
 
 ---
 
@@ -24,6 +26,12 @@
 在 AI 开发时代，**上下文的完整性** 决定了 AI 回答的上限。
 
 当 **AI Agent 的使用额度受限** 或 **无法自动访问项目全貌** 时，CodePulse 为你提供了一种“平替”方案：通过精准解析代码间的“文脉”联系，它能将复杂的工程逻辑压缩并汇聚。即便在普通的 Chat 窗口（如 ChatGPT-5, Claude 4.5）中直接粘贴生成的结果，你也能让 AI 获得**接近 Agent 级别的全局感知力**，从而完成高难度的重构或代码审查任务。
+
+---
+
+## 📥 下载与安装
+
+您可以直接前往 [GitHub Releases](https://github.com/632177447/Code-Pulse/releases) 下载适用于 Windows、macOS 或 Linux 的最新预编译程序。
 
 ---
 
