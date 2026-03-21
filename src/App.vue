@@ -208,7 +208,7 @@ async function triggerDirInput() {
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-900 text-slate-100 p-6 flex flex-col items-center font-sans antialiased selection:bg-blue-500/30 relative">
+  <main class="h-screen bg-slate-900 text-slate-100 p-6 flex flex-col items-center font-sans antialiased selection:bg-blue-500/30 relative overflow-y-auto">
     <button 
       @click="isSettingsOpen = true"
       class="absolute top-6 right-6 p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-colors shadow-lg border border-slate-700"
@@ -296,10 +296,10 @@ async function triggerDirInput() {
     </div>
 
     <!-- Output Area -->
-    <div class="w-full max-w-6xl relative flex-1 flex min-h-[400px] gap-4 mb-4">
+    <div class="w-full max-w-6xl relative flex-1 flex min-h-[380px] gap-4 mb-4">
       
       <!-- Tree Component Sidebar -->
-      <div class="w-1/3 min-w-[250px] flex flex-col bg-[#0d1117] border border-slate-700 rounded-xl overflow-hidden shadow-inner shrink-0">
+      <div class="w-1/3 min-w-[250px] flex flex-col bg-[#0d1117] border border-slate-700 rounded-xl overflow-hidden shadow-inner shrink-0 min-h-full">
         <div class="px-4 py-2.5 bg-slate-800/80 backdrop-blur-md border-b border-slate-700 flex items-center justify-between z-10">
             <span class="text-sm font-semibold text-slate-400">依赖文件树</span>
             <span class="text-[10px] bg-slate-700 w-fit text-slate-300 font-mono px-2 py-0.5 rounded-full">{{ fileNodes.length }} 项</span>
