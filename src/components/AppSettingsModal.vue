@@ -58,7 +58,9 @@ const settingsGroups = [
           { label: '.json', value: 'json' },
           { label: '.md', value: 'md' },
           { label: '.html', value: 'html' },
-          { label: '.css', value: 'css' }
+          { label: '.css', value: 'css' },
+          { label: '.scss', value: 'scss' },
+          { label: '.less', value: 'less' }
         ]
       },
       {

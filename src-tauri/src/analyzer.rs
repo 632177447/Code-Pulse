@@ -24,6 +24,8 @@ static CS_RE: OnceLock<Regex> = OnceLock::new();
 static PHP_RE: OnceLock<Regex> = OnceLock::new();
 // ruby: require '...' | require_relative '...'
 static RB_RE: OnceLock<Regex> = OnceLock::new();
+// css/scss/less: @import "..."; | @import url("...");
+static CSS_RE: OnceLock<Regex> = OnceLock::new();
 static STR_RE: OnceLock<Regex> = OnceLock::new();
 
 fn get_js_re() -> &'static Regex {
@@ -83,6 +85,12 @@ fn get_php_re() -> &'static Regex {
 fn get_rb_re() -> &'static Regex {
     RB_RE.get_or_init(|| {
         Regex::new(r#"(?m)^\s*require(?:_relative)?\s*['"]([^'"]+)['"]"#).unwrap()
+    })
+}
+
+fn get_css_re() -> &'static Regex {
+    CSS_RE.get_or_init(|| {
+        Regex::new(r#"(?m)@import\s+(?:url\(['"]?([^'"]+?)['"]?\)|['"]([^'"]+)['"])"#).unwrap()
     })
 }
 
@@ -167,6 +175,14 @@ fn extract_dependencies(content: &str, ext: &str) -> Vec<String> {
                 }
             }
         }
+        "css" | "scss" | "less" => {
+            let re = get_css_re();
+            for cap in re.captures_iter(&content_lf) {
+                if let Some(m) = cap.get(1).or(cap.get(2)) {
+                    deps.push(m.as_str().to_string());
+                }
+            }
+        }
         _ => {}
     }
     deps
@@ -192,6 +208,7 @@ fn resolve_path(base_dir: &Path, import_path: &str, ext: &str) -> Option<PathBuf
         "cs" => vec!["cs"],
         "php" => vec!["php"],
         "rb" => vec!["rb"],
+        "css" | "scss" | "less" => vec!["css", "scss", "less"],
         _ => vec![],
     };
 
@@ -289,7 +306,7 @@ pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize, generate_tree:
     let mut parsed_paths: Vec<String> = Vec::new();
 
     let included_types_set: HashSet<String> = if included_types.is_empty() {
-        vec!["js", "mjs", "jsx", "ts", "tsx", "vue", "svelte", "py", "rs", "go", "java", "kt", "c", "cpp", "h", "hpp", "cs", "php", "rb"]
+        vec!["js", "mjs", "jsx", "ts", "tsx", "vue", "svelte", "py", "rs", "go", "java", "kt", "c", "cpp", "h", "hpp", "cs", "php", "rb", "css", "scss", "less"]
             .into_iter().map(|s| s.to_string()).collect()
     } else {
         included_types.into_iter().map(|s| s.to_lowercase()).collect()
