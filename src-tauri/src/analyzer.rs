@@ -387,13 +387,27 @@ fn resolve_path(base_dir: &Path, import_path: &str, ext: &str, project_root: &Pa
 }
 
 fn find_project_root(start_path: &Path) -> PathBuf {
+    // 增加对多种编程语言和构建工具根目录标识文件的支持，确保在不同类型的项目中都能准确识别根节点
+    let root_markers = [
+        "package.json", "Cargo.toml", ".git", "go.mod", "go.work",
+        "pyproject.toml", "requirements.txt", "pom.xml", 
+        "build.gradle", "composer.json", "Gemfile", "Makefile",
+        "pnpm-workspace.yaml", "lerna.json", "nx.json", "deno.json",
+        "tsconfig.json", "jsconfig.json"
+    ];
+
     let mut current = start_path;
     loop {
-        if current.join("package.json").exists() || current.join("Cargo.toml").exists() || current.join(".git").exists() {
-            if let Ok(canon) = current.canonicalize() {
-                return canon;
+        for marker in &root_markers {
+            if current.join(marker).exists() {
+                // 找到标识文件后尝试规范化路径，确保后续相对路径解析（如 @/ 或 crate/）的基准一致
+                if let Ok(canon) = current.canonicalize() {
+                    return canon;
+                }
+                return current.to_path_buf();
             }
         }
+
         if let Some(parent) = current.parent() {
             current = parent;
         } else {
@@ -401,6 +415,7 @@ fn find_project_root(start_path: &Path) -> PathBuf {
         }
     }
     
+    // 如果递归到根部仍未找到标识，回退到当前目录或文件所在目录，并尝试获取其绝对路径
     let fallback = if start_path.is_dir() {
         start_path.to_path_buf()
     } else {
