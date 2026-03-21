@@ -98,6 +98,33 @@ fn resolve_path(base_dir: &Path, import_path: &str, ext: &str) -> Option<PathBuf
     None
 }
 
+fn find_project_root(start_path: &Path) -> PathBuf {
+    let mut current = start_path;
+    loop {
+        if current.join("package.json").exists() || current.join("Cargo.toml").exists() || current.join(".git").exists() {
+            if let Ok(canon) = current.canonicalize() {
+                return canon;
+            }
+        }
+        if let Some(parent) = current.parent() {
+            current = parent;
+        } else {
+            break;
+        }
+    }
+    
+    let fallback = if start_path.is_dir() {
+        start_path.to_path_buf()
+    } else {
+        start_path.parent().unwrap_or(Path::new("")).to_path_buf()
+    };
+    if let Ok(canon) = fallback.canonicalize() {
+        canon
+    } else {
+        fallback
+    }
+}
+
 pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize) -> Result<String, String> {
     let mut visited: HashSet<PathBuf> = HashSet::new();
     let mut result_blocks: Vec<String> = Vec::new();
@@ -107,6 +134,8 @@ pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize) -> Result<Stri
     for p_str in paths {
         let path = Path::new(&p_str);
         if !path.exists() { continue; }
+
+        let base_path = find_project_root(path);
 
         if path.is_dir() {
             for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
@@ -118,12 +147,12 @@ pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize) -> Result<Stri
                         if path_str.contains("node_modules") || path_str.contains(".git") || path_str.contains("dist") || path_str.contains("target") {
                             continue;
                         }
-                        process_file(e_path, 0, max_depth, &mut visited, &mut result_blocks);
+                        process_file(e_path, 0, max_depth, &mut visited, &mut result_blocks, &base_path);
                     }
                 }
             }
         } else {
-            process_file(path, 0, max_depth, &mut visited, &mut result_blocks);
+            process_file(path, 0, max_depth, &mut visited, &mut result_blocks, &base_path);
         }
     }
 
@@ -135,7 +164,8 @@ fn process_file(
     current_depth: usize, 
     max_depth: usize, 
     visited: &mut HashSet<PathBuf>, 
-    result_blocks: &mut Vec<String>
+    result_blocks: &mut Vec<String>,
+    base_path: &Path
 ) {
     if current_depth > max_depth || !path.exists() { return; }
     
@@ -150,9 +180,20 @@ fn process_file(
     visited.insert(abs_path.clone());
     
     if let Ok(content) = fs::read_to_string(&abs_path) {
+        let mut display_path_str = abs_path.to_string_lossy().into_owned();
+        if let Ok(rel_path) = abs_path.strip_prefix(base_path) {
+            display_path_str = rel_path.to_string_lossy().replace("\\", "/");
+        } else {
+            display_path_str = display_path_str.replace("\\", "/");
+            // Also try to strip UNC prefix if present
+            if display_path_str.starts_with("//?/") {
+                display_path_str = display_path_str[4..].to_string();
+            }
+        }
+
         result_blocks.push(format!(
             "========================================\n[FILE PATH]: {}\n(Dependency Layer: {})\n========================================\n[CONTENT START]\n{}\n[CONTENT END]", 
-            path.display(), current_depth, content
+            display_path_str, current_depth, content
         ));
         
         let ext = abs_path.extension().and_then(|e| e.to_str()).unwrap_or("");
@@ -160,7 +201,7 @@ fn process_file(
         
         for dep in extract_dependencies(&content, ext) {
             if let Some(resolved) = resolve_path(base_dir, &dep, ext) {
-                process_file(&resolved, current_depth + 1, max_depth, visited, result_blocks);
+                process_file(&resolved, current_depth + 1, max_depth, visited, result_blocks, base_path);
             }
         }
     }
