@@ -41,7 +41,9 @@ const settingsGroups = [
         options: [
           { label: '.vue', value: 'vue' },
           { label: '.ts', value: 'ts' },
+          { label: '.tsx', value: 'tsx' },
           { label: '.js', value: 'js' },
+          { label: '.mjs', value: 'mjs' },
           { label: '.rs', value: 'rs' },
           { label: '.py', value: 'py' },
           { label: '.go', value: 'go' },

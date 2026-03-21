@@ -71,7 +71,7 @@ const value = computed({
   </label>
 
   <!-- Radio -->
-  <div v-else-if="config.type === 'radio'" :class="['inline-block w-full', config.label ? 'space-y-1.5 mt-3.5' : 'mt-1.5']">
+  <div v-else-if="config.type === 'radio'" :class="[config.label ? 'space-y-1.5 mt-3.5' : 'mt-1.5']">
     <label v-if="config.label" class="block text-sm font-semibold text-slate-300">{{ config.label }}</label>
     <p v-if="config.description" class="text-xs text-slate-500 pb-1">{{ config.description }}</p>
     <div class="flex gap-6">
@@ -83,7 +83,7 @@ const value = computed({
   </div>
 
   <!-- Checkbox -->
-  <div v-else-if="config.type === 'checkbox'" :class="['inline-block w-full', config.label ? 'space-y-1.5 mt-3.5' : 'mt-1.5']">
+  <div v-else-if="config.type === 'checkbox'" :class="[config.label ? 'space-y-1.5 mt-3.5' : 'mt-1.5']">
     <label v-if="config.label" class="block text-sm font-semibold text-slate-300">{{ config.label }}</label>
     <p v-if="config.description" class="text-xs text-slate-500 pb-1">{{ config.description }}</p>
     <div class="flex flex-wrap gap-6">

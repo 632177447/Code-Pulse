@@ -90,7 +90,7 @@ fn extract_dependencies(content: &str, ext: &str) -> Vec<String> {
     let mut deps = Vec::new();
     let content_lf = content.replace("\r\n", "\n");
     match ext {
-        "js" | "jsx" | "ts" | "tsx" | "vue" | "svelte" => {
+        "js" | "mjs" | "jsx" | "ts" | "tsx" | "vue" | "svelte" => {
             let re = get_js_re();
             for cap in re.captures_iter(&content_lf) {
                 if let Some(m) = cap.get(1).or(cap.get(2)).or(cap.get(3)) {
@@ -183,7 +183,7 @@ fn resolve_path(base_dir: &Path, import_path: &str, ext: &str) -> Option<PathBuf
     }
     
     let extensions = match ext {
-        "js" | "jsx" | "ts" | "tsx" | "vue" | "svelte" => vec!["ts", "js", "tsx", "jsx", "vue", "svelte"],
+        "js" | "mjs" | "jsx" | "ts" | "tsx" | "vue" | "svelte" => vec!["ts", "js", "mjs", "tsx", "jsx", "vue", "svelte"],
         "py" => vec!["py"],
         "rs" => vec!["rs"],
         "go" => vec!["go"],
@@ -289,7 +289,7 @@ pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize, generate_tree:
     let mut parsed_paths: Vec<String> = Vec::new();
 
     let included_types_set: HashSet<String> = if included_types.is_empty() {
-        vec!["js", "jsx", "ts", "tsx", "vue", "svelte", "py", "rs", "go", "java", "kt", "c", "cpp", "h", "hpp", "cs", "php", "rb"]
+        vec!["js", "mjs", "jsx", "ts", "tsx", "vue", "svelte", "py", "rs", "go", "java", "kt", "c", "cpp", "h", "hpp", "cs", "php", "rb"]
             .into_iter().map(|s| s.to_string()).collect()
     } else {
         included_types.into_iter().map(|s| s.to_lowercase()).collect()
