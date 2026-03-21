@@ -21,23 +21,23 @@ const appConfig = computed({
 
 const settingsGroups = [
   {
-    id: 'basic',
-    title: '基础设置',
+    id: 'analysis',
+    title: '解析范围',
     colorClass: 'text-blue-400',
     items: [
       {
         id: 'maxDepth',
         type: 'slider',
         label: '递归解析深度',
-        description: '设置文件解析依赖扫描的层级数。设置得越高，包含的相关文件越多。',
+        description: '设置文件解析依赖扫描的层级数。层级越高，包含的相关文件越多。',
         min: 0,
         max: 10
       },
       {
         id: 'includedTypes',
         type: 'checkbox',
-        label: '目标文件格式',
-        description: '选择你需要包含和提取的目标代码文件格式。',
+        label: '目标文件类型',
+        description: '选择需要提取依赖的目标代码文件格式。',
         options: [
           { label: '.vue', value: 'vue' },
           { label: '.ts', value: 'ts' },
@@ -66,29 +66,54 @@ const settingsGroups = [
       {
         id: 'customIncludedTypes',
         type: 'input',
-        placeholder: '在此输入其他自定义后缀名 (例如: sh, yaml, xml)'
+        label: '自定义后缀名',
+        description: '在此输入其他自定义后缀名，按逗号分隔（如: sh, yaml, xml）。',
+        placeholder: 'sh, yaml, xml'
       },
       {
-        id: 'customPrompt',
+        id: 'projectRoots',
         type: 'textarea',
-        label: '自定义提示词',
-        description: '可以在生成的上下文前面插入所需的引导信息。',
-        placeholder: '请输入自定义提示词...',
-        rows: 3
-      }
+        label: '自定义项目根目录',
+        description: '为空表示自动匹配。可以用逗号或换行分隔多个路径。若手动指定的根目录都不匹配，则回退到自动匹配逻辑。',
+        placeholder: "D:/Projects/my-app, D:/Projects/common-lib",
+        rows: 2
+      },
     ]
   },
   {
-    id: 'advanced',
-    title: '解析选项',
+    id: 'filtering',
+    title: '过滤与优化',
     colorClass: 'text-purple-400',
     items: [
       {
-        id: 'generateTree',
+        id: 'enableMinimization',
         type: 'switch',
-        label: '顶部生成文件树结构',
-        description: '结果中最开头将包含解析目录的层级树状图。'
+        label: '上下文压缩',
+        description: '自动移除间接引用文件的函数实现，仅保留定义，大幅节省上下文空间。'
       },
+      {
+        id: 'ignoreExts',
+        type: 'textarea',
+        label: '全局忽略项',
+        description: '忽略指定的后缀或目录（支持 * 通配符）。通常用于排除依赖库或构建产物。',
+        placeholder: '.git, node_modules, dist, target, build',
+        rows: 3
+      },
+      {
+        id: 'ignoreDeepParse',
+        type: 'textarea',
+        label: '跳过深层解析',
+        description: '匹配到的文件将包含内容，但不继续追踪其内部依赖（如配置文件、测试文件）。',
+        placeholder: "package.json, tsconfig.json, vite.config.ts, README.md, *.test.ts",
+        rows: 3
+      },
+    ]
+  },
+  {
+    id: 'runtime',
+    title: '交互与输出',
+    colorClass: 'text-emerald-400',
+    items: [
       {
         id: 'autoGenerate',
         type: 'switch',
@@ -96,35 +121,19 @@ const settingsGroups = [
         description: '开启后，在上传、移除文件或更改相关设置时会自动更新输出结果。'
       },
       {
-        id: 'ignoreExts',
-        type: 'textarea',
-        label: '忽略后缀或目录',
-        description: '可通过英文逗号或换行分隔，支持使用 * 通配符匹配（如 *.log, test-* 等）。',
-        placeholder: '.git, node_modules, dist, target, build',
-        rows: 4
-      },
-      {
-        id: 'ignoreDeepParse',
-        type: 'textarea',
-        label: '不进行深层解析的忽略配置',
-        description: '可通过英文逗号或换行分隔，支持使用 *。匹配到的文件将作为终端上下文，但不继续解析依赖。',
-        placeholder: "package.json, tsconfig.json, vite.config.ts, README.md, *.test.ts",
-        rows: 3
-      },
-      {
-        id: 'enableMinimization',
+        id: 'generateTree',
         type: 'switch',
-        label: '开启依赖代码精简',
-        description: '仅对间接依赖文件生效。自动移除函数实现体，仅保留函数签名定义，从而大幅减少上下文长度。'
+        label: '包含文件树视图',
+        description: '在输出结果的开头生成项目的层级目录树。'
       },
       {
-        id: 'projectRoots',
+        id: 'customPrompt',
         type: 'textarea',
-        label: '指定根目录',
-        description: '为空表示自动匹配。可以用逗号或换行分隔多个路径。若手动指定的根目录都不匹配，则回退到自动匹配逻辑。',
-        placeholder: "D:/Projects/my-app, D:/Projects/common-lib",
-        rows: 2
-      },
+        label: '全局引导提示词 (Prompt)',
+        description: '在生成的上下文头部注入自定义指令，引导 AI 更好地理解代码。',
+        placeholder: '例如：你是资深 Rust 工程师，正在为我审查以下代码...',
+        rows: 3
+      }
     ]
   }
 ];
