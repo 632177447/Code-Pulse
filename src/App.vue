@@ -414,7 +414,7 @@ function handleWheel(e: WheelEvent) {
       />
 
       <!-- Right: Main Context Output -->
-      <div class="flex-1 flex flex-col bg-app-surface border border-app-border rounded-3xl shadow-app-md relative">
+      <div class="flex-1 flex flex-col bg-app-surface border border-app-border rounded-3xl shadow-app-md relative overflow-hidden">
         <div class="px-5 py-2 bg-app-surface/80 border-b border-app-border rounded-t-3xl flex justify-between items-center backdrop-blur-xl shrink-0 z-10">
           <div class="flex flex-col">
               <span class="text-sm font-black text-app-text flex items-center gap-4">
