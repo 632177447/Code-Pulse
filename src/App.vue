@@ -176,7 +176,7 @@ async function triggerDirInput() {
       CodePulse 码脉
     </h1>
     <p class="text-slate-400 mb-8 max-w-lg text-center font-medium">
-      拖拽代码文件或项目目录，一键深度递归解析依赖，自动生成供大语言模型阅读的完整代码上下文。
+      通过代码文件或项目目录，一键深度递归解析依赖，自动生成供大语言模型阅读的完整代码上下文。
     </p>
 
     <!-- Top Section: Drop Zone & User Prompt -->
