@@ -86,7 +86,27 @@ const value = computed({
   <div v-else-if="config.type === 'checkbox'" :class="[config.label ? 'space-y-1.5 mt-3.5' : 'mt-1.5']">
     <label v-if="config.label" class="block text-sm font-semibold text-slate-300">{{ config.label }}</label>
     <p v-if="config.description" class="text-xs text-slate-500 pb-1">{{ config.description }}</p>
-    <div class="flex flex-wrap gap-6">
+    
+    <!-- Grid Layout Mode -->
+    <div v-if="config.layout === 'grid'" 
+      class="grid gap-2"
+      :style="{ gridTemplateColumns: `repeat(${config.columns || 4}, minmax(0, 1fr))` }"
+    >
+      <label 
+        v-for="opt in config.options" 
+        :key="opt.value" 
+        class="flex items-center space-x-2 px-2 py-1 rounded-md border transition-all cursor-pointer"
+        :class="Array.isArray(value) && value.includes(opt.value) 
+          ? 'bg-blue-600/10 border-blue-500/30' 
+          : 'bg-transparent border-transparent hover:bg-slate-800/50'"
+      >
+        <input type="checkbox" :value="opt.value" v-model="value" class="w-4 h-4 accent-blue-600 bg-slate-700 border-slate-600 rounded">
+        <span class="text-sm text-slate-300 truncate">{{ opt.label }}</span>
+      </label>
+    </div>
+
+    <!-- Default Multi-line wrap mode -->
+    <div v-else class="flex flex-wrap gap-6">
       <label v-for="opt in config.options" :key="opt.value" class="flex items-center space-x-2 cursor-pointer">
         <input type="checkbox" :value="opt.value" v-model="value" class="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 rounded">
         <span class="text-sm text-slate-300">{{ opt.label }}</span>

@@ -38,6 +38,8 @@ const settingsGroups = [
         type: 'checkbox',
         label: '目标文件类型',
         description: '选择需要提取依赖的目标代码文件格式。',
+        layout: 'grid',
+        columns: 6,
         options: [
           { label: '.vue', value: 'vue' },
           { label: '.ts', value: 'ts' },
