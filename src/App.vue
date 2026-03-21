@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, reactive, computed } from "vue";
+import { ref, onMounted, onUnmounted, reactive, computed, nextTick } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -13,6 +13,8 @@ const isLoading = ref(false);
 const filesList = ref<string[]>([]);
 const isSettingsOpen = ref(false);
 const userPrompt = ref("");
+const isEditing = ref(false);
+const outputAreaRef = ref<HTMLTextAreaElement | null>(null);
 
 const totalCharacters = computed(() => {
   return outputContext.value ? outputContext.value.length : 0;
@@ -178,6 +180,14 @@ async function copyToClipboard() {
   }
 }
 
+async function toggleEdit() {
+    isEditing.value = !isEditing.value;
+    if (isEditing.value) {
+        await nextTick();
+        outputAreaRef.value?.focus();
+    }
+}
+
 async function triggerFileInput() {
     const selected = await open({
         multiple: true,
@@ -319,19 +329,36 @@ async function triggerDirInput() {
                 {{ totalCharacters.toLocaleString() }} 字
               </span>
           </span>
-          <button 
-            @click="copyToClipboard"
-            class="p-2 bg-slate-700 hover:bg-slate-600 rounded-md transition-colors active:bg-slate-800"
-            title="一键复制"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-          </button>
+          <div class="flex items-center space-x-2">
+            <button 
+              @click="toggleEdit"
+              class="p-2 bg-slate-700 hover:bg-slate-600 rounded-md transition-colors"
+              :class="isEditing ? 'bg-blue-600/60 ring-1 ring-blue-500/50' : ''"
+              :title="isEditing ? '保存并退出编辑' : '编辑内容'"
+            >
+              <svg v-if="!isEditing" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </button>
+            <button 
+              @click="copyToClipboard"
+              class="p-2 bg-slate-700 hover:bg-slate-600 rounded-md transition-colors active:bg-slate-800"
+              title="一键复制"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+            </button>
+          </div>
         </div>
         <textarea 
-          readonly
+          ref="outputAreaRef"
+          :readonly="!isEditing"
           v-model="outputContext"
           placeholder="解析后的所有代码将合并展示在这里..."
-          class="w-full flex-1 p-4 bg-[#0d1117] border border-slate-700 rounded-b-xl focus:outline-none font-mono text-sm text-green-400 leading-relaxed resize-none shadow-inner z-0"
+          class="w-full flex-1 p-4 border rounded-b-xl focus:outline-none font-mono text-sm leading-relaxed resize-none shadow-inner z-0 transition-all duration-300"
+          :class="isEditing ? 'bg-[#161b22] border-blue-500/50 text-slate-100 ring-1 ring-blue-500/20' : 'bg-[#0d1117] border-slate-700 text-green-400'"
         ></textarea>
         
         <!-- Loading Overlay -->
@@ -351,19 +378,37 @@ async function triggerDirInput() {
 </template>
 
 <style>
-/* Custom Scrollbar for Textarea and Tree */
-textarea::-webkit-scrollbar, .custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
+/* 全局滚动条美化 - 极简现代风格 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
-textarea::-webkit-scrollbar-track, .custom-scrollbar::-webkit-scrollbar-track {
-  background: #0d1117;
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4); /* slate-500 */
+  border-radius: 20px;
+  border: 3px solid transparent; /* 通过透明边框实现内边距效果 */
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6); /* slate-400 */
+  border-width: 2px; /* 悬停时稍微变胖一点，暗示可交互 */
+}
+
+/* 针对特定深色背景容器的微调 */
+textarea::-webkit-scrollbar-track, 
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #0d1117; 
   border-bottom-right-radius: 0.75rem;
 }
-textarea::-webkit-scrollbar-thumb, .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 4px;
-}
-textarea::-webkit-scrollbar-thumb:hover, .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+
+textarea::-webkit-scrollbar-thumb,
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
 }
 </style>
