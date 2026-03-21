@@ -4,10 +4,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import AppSettingsModal from "./components/AppSettingsModal.vue";
-import FileTree from "./components/FileTree.vue";
+import DependencyTreeSidebar from "./components/DependencyTreeSidebar.vue";
 
 const outputContext = ref("");
-const fileNodes = ref<{path: string, content: string}[]>([]);
+const fileNodes = ref<{path: string, content: string, abs_path: string}[]>([]);
 const isDragging = ref(false);
 const isLoading = ref(false);
 const filesList = ref<string[]>([]);
@@ -31,24 +31,58 @@ const appConfig = reactive({
   includedTypes: ["vue", "ts", "js", "rs", "py", "go", "json", "md", "html", "css"],
   customIncludedTypes: "",
 });
-
 let unlistenDragDrop: () => void;
+let lastHighlightedNode: HTMLElement | null = null;
 
 onMounted(async () => {
-  unlistenDragDrop = await getCurrentWebview().onDragDropEvent((event) => {
-    if (event.payload.type === 'over' || event.payload.type === 'enter') {
-      isDragging.value = true;
-    } else if (event.payload.type === 'leave') {
-      isDragging.value = false;
-    } else if (event.payload.type === 'drop') {
-      isDragging.value = false;
-      const paths = event.payload.paths;
-      if (paths && paths.length > 0) {
-        filesList.value = paths;
-        if (appConfig.autoGenerate) {
-          processPaths(paths);
+  unlistenDragDrop = await getCurrentWebview().onDragDropEvent((event: any) => {
+    const { type, position, paths } = event.payload;
+
+    // 关键修正：Tauri 的坐标是物理像素，需要除以缩放比例转换为逻辑像素
+    const dpi = window.devicePixelRatio;
+    const lx = position ? position.x / dpi : 0;
+    const ly = position ? position.y / dpi : 0;
+
+    if (type === 'over' || type === 'enter') {
+      if (position) {
+        const el = document.elementFromPoint(lx, ly);
+        const dropZone = el?.closest('[data-drop-zone="main"]');
+        const nodeZone = el?.closest('[data-drop-path]') as HTMLElement | null;
+
+        isDragging.value = !!dropZone;
+
+        if (nodeZone !== lastHighlightedNode) {
+          if (lastHighlightedNode) lastHighlightedNode.classList.remove('drop-node-hover');
+          if (nodeZone) nodeZone.classList.add('drop-node-hover');
+          lastHighlightedNode = nodeZone;
         }
       }
+    } else if (type === 'leave') {
+      isDragging.value = false;
+      if (lastHighlightedNode) {
+        lastHighlightedNode.classList.remove('drop-node-hover');
+        lastHighlightedNode = null;
+      }
+    } else if (type === 'drop') {
+      isDragging.value = false;
+      if (lastHighlightedNode) {
+        lastHighlightedNode.classList.remove('drop-node-hover');
+      }
+      
+      const el = position ? document.elementFromPoint(lx, ly) : null;
+      const dropZone = el?.closest('[data-drop-zone="main"]');
+      const nodeZone = el?.closest('[data-drop-path]') as HTMLElement | null;
+
+      if (paths && paths.length > 0) {
+        if (dropZone) {
+          filesList.value = paths;
+          if (appConfig.autoGenerate) processPaths(paths);
+        } else if (nodeZone) {
+          const destDir = nodeZone.dataset.dropPath;
+          if (destDir) handleTreeUploadFiles(paths, destDir);
+        }
+      }
+      lastHighlightedNode = null;
     }
   });
 });
@@ -68,7 +102,7 @@ async function processPaths(paths: string[]) {
       .map(s => s.startsWith('.') ? s.substring(1) : s);
     const finalIncludedTypes = Array.from(new Set([...appConfig.includedTypes, ...customTypesArray]));
 
-    const result = await invoke<Array<{path: string, content: string}>>("generate_context", {
+    const result = await invoke<Array<{path: string, content: string, abs_path: string}>>("generate_context", {
       paths: paths,
       maxDepth: appConfig.maxDepth,
       generateTree: appConfig.generateTree,
@@ -154,28 +188,29 @@ function handleNodeDelete(fullPath: string) {
     updateOutputContext();
 }
 
-function handleDrop(event: DragEvent) {
-  event.preventDefault();
-  isDragging.value = false;
-
-  if (event.dataTransfer?.files) {
-    const paths: string[] = [];
-    for (let i = 0; i < event.dataTransfer.files.length; i++) {
-        const file = event.dataTransfer.files[i] as any;
-        // Tauri 运行时常常会在 File 对象中注入真实绝对路径 path
-        if (file.path) {
-            paths.push(file.path);
-        } else {
-            paths.push(file.name);
+async function handleTreeUploadFiles(files: string[], destDir: string) {
+    try {
+        isLoading.value = true;
+        const newPaths = await invoke<string[]>("copy_files_to_dest", {
+            sources: files,
+            destDir: destDir
+        });
+        if (newPaths && newPaths.length > 0) {
+            // 将新路径添加进 filesList
+            for (const p of newPaths) {
+                if (!filesList.value.includes(p)) {
+                    filesList.value.push(p);
+                }
+            }
+            // 无论 autoGenerate 是否开启，都需要更新结果
+            await processPaths(filesList.value);
         }
+    } catch (e) {
+        console.error("Upload failed:", e);
+        alert(`上传失败: ${e}`);
+    } finally {
+        isLoading.value = false;
     }
-    if (paths.length > 0) {
-      filesList.value = paths;
-      if (appConfig.autoGenerate) {
-        processPaths(paths);
-      }
-    }
-  }
 }
 
 async function copyToClipboard() {
@@ -268,11 +303,9 @@ function handleWheel(e: WheelEvent) {
     <div class="w-full max-w-6xl flex gap-6 mb-6">
       <!-- Left: Drop Zone -->
       <div 
+        data-drop-zone="main"
         class="flex-1 h-48 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center transition-all duration-300 relative overflow-hidden group shadow-sm bg-slate-800/30"
         :class="isDragging ? 'border-blue-400 bg-blue-900/10 scale-[1.01] shadow-blue-500/10' : 'border-slate-600 hover:border-slate-400 hover:bg-slate-800/50'"
-        @dragover.prevent="isDragging = true"
-        @dragleave.prevent="isDragging = false"
-        @drop="handleDrop"
       >
         <div class="pointer-events-none flex flex-col items-center space-y-3 z-10 w-full px-4">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-slate-400 group-hover:text-blue-400 transition-colors drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -352,15 +385,11 @@ function handleWheel(e: WheelEvent) {
     <div class="w-full max-w-6xl relative flex-1 flex min-h-[380px] gap-4 mb-4">
       
       <!-- Tree Component Sidebar -->
-      <div class="w-1/3 min-w-[250px] flex flex-col bg-[#0d1117] border border-slate-700 rounded-xl overflow-hidden shadow-inner shrink-0 min-h-full">
-        <div class="px-4 py-2.5 bg-slate-800/80 backdrop-blur-md border-b border-slate-700 flex items-center justify-between z-10">
-            <span class="text-sm font-semibold text-slate-400">依赖文件树</span>
-            <span class="text-[10px] bg-slate-700 w-fit text-slate-300 font-mono px-2 py-0.5 rounded-full">{{ fileNodes.length }} 项</span>
-        </div>
-        <div class="flex-1 overflow-y-auto p-2 relative custom-scrollbar">
-            <FileTree :paths="fileNodes.map(n => n.path)" @delete="handleNodeDelete" />
-        </div>
-      </div>
+      <DependencyTreeSidebar 
+        :fileNodes="fileNodes" 
+        @delete="handleNodeDelete" 
+        @upload-files="handleTreeUploadFiles"
+      />
 
       <!-- Context Textarea -->
       <div class="flex-1 flex flex-col relative w-full overflow-hidden">
@@ -374,6 +403,7 @@ function handleWheel(e: WheelEvent) {
           </span>
           <div class="flex items-center space-x-2">
             <button 
+              v-if="outputContext"
               @click="toggleEdit"
               class="p-2 bg-slate-700 hover:bg-slate-600 rounded-md transition-colors"
               :class="isEditing ? 'bg-blue-600/60 ring-1 ring-blue-500/50' : ''"
@@ -437,11 +467,13 @@ function handleWheel(e: WheelEvent) {
   border-radius: 20px;
   border: 3px solid transparent; /* 通过透明边框实现内边距效果 */
   background-clip: content-box;
+  cursor: pointer;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.6); /* slate-400 */
   border-width: 2px; /* 悬停时稍微变胖一点，暗示可交互 */
+  cursor: pointer;
 }
 
 /* 针对特定深色背景容器的微调 */
@@ -473,5 +505,12 @@ textarea::-webkit-scrollbar-thumb,
 
 .custom-scrollbar-h::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.5);
+}
+
+/* 拖拽到树节点的高亮样式 */
+.drop-node-hover {
+  background-color: rgba(59, 130, 246, 0.3) !important;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.5);
+  border-radius: 6px;
 }
 </style>

@@ -4,6 +4,7 @@ import { ref } from 'vue';
 interface TreeNode {
   name: string;
   fullPath: string;
+  absPath: string;
   isDirectory: boolean;
   isExpanded: boolean;
   children: Record<string, TreeNode>;
@@ -35,7 +36,9 @@ function bubbleDelete(fullPath: string) {
 </script>
 
 <template>
-  <div class="pl-2 mt-0.5 select-none">
+  <div class="pl-2 mt-0.5 select-none"
+    :data-drop-path="node.isDirectory ? node.absPath : node.absPath.substring(0, Math.max(node.absPath.lastIndexOf('/'), node.absPath.lastIndexOf('\\')))"
+  >
     <div 
       class="flex items-center justify-between group py-1 px-1.5 rounded-md hover:bg-slate-700/50 cursor-pointer transition-colors"
       @click="toggle"

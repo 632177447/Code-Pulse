@@ -280,6 +280,7 @@ fn parse_ignore_patterns(raw: &str, defaults: Vec<String>) -> (HashSet<String>, 
 pub struct FileNode {
     pub path: String,
     pub content: String,
+    pub abs_path: String,
 }
 
 pub fn analyze_dependencies(paths: Vec<String>, max_depth: usize, generate_tree: bool, ignore_exts: String, ignore_deep_parse: String, included_types: Vec<String>) -> Result<Vec<FileNode>, String> {
@@ -467,7 +468,8 @@ fn process_file(
             content: format!(
                 "========================================\n[FILE PATH]: {}\n(Dependency Layer: {})\n========================================\n[CONTENT START]\n{}\n[CONTENT END]", 
                 display_path_str, current_depth, content
-            )
+            ),
+            abs_path: abs_path.to_string_lossy().into_owned(),
         });
         
         let ext = abs_path.extension().and_then(|e| e.to_str()).unwrap_or("");
