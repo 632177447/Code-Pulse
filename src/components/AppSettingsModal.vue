@@ -22,13 +22,13 @@ const appConfig = computed({
 const settingsGroups = [
   {
     id: 'basic',
-    title: '基础设置 (Basic Options)',
+    title: '基础设置',
     colorClass: 'text-blue-400',
     items: [
       {
         id: 'maxDepth',
         type: 'slider',
-        label: '递归解析深度 (Recursive Parsing Depth)',
+        label: '递归解析深度',
         description: '设置文件解析依赖扫描的层级数。设置得越高，包含的相关文件越多。',
         min: 0,
         max: 10
@@ -36,14 +36,21 @@ const settingsGroups = [
       {
         id: 'ignoreExts',
         type: 'input',
-        label: '忽略后缀或目录 (Ignore Patterns)',
+        label: '忽略后缀或目录',
         description: '通过英文逗号分隔，匹配的目录或文件将不被解析。',
         placeholder: '.git, node_modules, dist'
       },
       {
+        id: 'ignoreDeepParse',
+        type: 'input',
+        label: '不进行深层解析的忽略后缀或目录',
+        description: '通过英文逗号分隔，匹配的目录或文件将不进行深层递归解析。',
+        placeholder: ''
+      },
+      {
         id: 'customPrompt',
         type: 'textarea',
-        label: '自定义提示词首部 (Custom Prompt Header)',
+        label: '自定义提示词首部',
         description: '可以在生成的上下文前面插入所需的引导信息。',
         placeholder: '请输入自定义提示词...',
         rows: 3
@@ -52,7 +59,7 @@ const settingsGroups = [
   },
   {
     id: 'advanced',
-    title: '解析选项 (Parse Options)',
+    title: '解析选项',
     colorClass: 'text-purple-400',
     items: [
       {
@@ -70,7 +77,7 @@ const settingsGroups = [
       {
         id: 'parseMode',
         type: 'radio',
-        label: '默认解析模式 (Parse Mode)',
+        label: '默认解析模式',
         options: [
           { label: '普通模式', value: 'normal' },
           { label: '严格模式', value: 'strict' },
@@ -80,12 +87,17 @@ const settingsGroups = [
       {
         id: 'includedTypes',
         type: 'checkbox',
-        label: '特殊偏好的文件类型 (Included Prefs)',
+        label: '目标文件格式',
+        description: '选择你需要包含和提取的目标代码文件格式。',
         options: [
           { label: '.vue', value: 'vue' },
           { label: '.ts', value: 'ts' },
+          { label: '.js', value: 'js' },
           { label: '.rs', value: 'rs' },
-          { label: '.json', value: 'json' }
+          { label: '.json', value: 'json' },
+          { label: '.md', value: 'md' },
+          { label: '.html', value: 'html' },
+          { label: '.css', value: 'css' }
         ]
       }
     ]

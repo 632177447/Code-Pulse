@@ -14,11 +14,12 @@ const isSettingsOpen = ref(false);
 const appConfig = reactive({
   maxDepth: 3,
   ignoreExts: ".git, node_modules, dist",
+  ignoreDeepParse: "",
   customPrompt: "",
   generateTree: true,
   autoGenerate: true,
   parseMode: "normal",
-  includedTypes: ["vue", "ts"],
+  includedTypes: ["vue", "ts", "js", "rs", "json", "md", "html", "css"],
 });
 
 let unlistenDragDrop: () => void;
