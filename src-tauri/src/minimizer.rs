@@ -111,10 +111,14 @@ fn should_compress(chars: &[char], pos: usize) -> bool {
                 current_word.clear();
             }
         } else if c == ')' {
+            // 函数签名结束，极大概率后面是函数体
             return true;
         } else if c == '>' && i > 0 && chars[i as usize - 1] == '=' {
+            // 箭头函数 =>
             return true;
-        } else if c == ';' || c == '{' || c == '}' || c == '(' || c == '[' || c == '=' || c == ':' || c == ',' {
+        } else if c == ';' || c == '{' || c == '}' || c == '(' || c == '=' || c == ',' {
+            // 碰到这些符号（除冒号、中括号外），说明当前块极大概率是对象属性、数组元素或非法起始
+            // 允许冒号、中括号、尖括号以支持复杂的 TypeScript 类型声明
             return false;
         } else {
             current_word.push(c);
@@ -133,9 +137,9 @@ fn should_compress(chars: &[char], pos: usize) -> bool {
 }
 
 fn is_allow_keyword(w: &str) -> bool {
-    matches!(w, "else" | "try" | "do" | "finally" | "static" | "unsafe")
+    matches!(w, "else" | "try" | "do" | "finally" | "static" | "unsafe" | "fn" | "func" | "function" | "def" | "get" | "set" | "async")
 }
 
 fn is_deny_keyword(w: &str) -> bool {
-    matches!(w, "import" | "export" | "const" | "let" | "var" | "interface" | "type" | "enum" | "struct" | "class" | "impl" | "trait")
+    matches!(w, "import" | "export" | "const" | "let" | "var" | "interface" | "type" | "enum" | "struct" | "class" | "impl" | "trait" | "return" | "yield" | "throw")
 }
