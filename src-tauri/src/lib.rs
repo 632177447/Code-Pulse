@@ -1,8 +1,7 @@
 mod analyzer;
 mod minimizer;
 mod cache;
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use std::fs;
 use std::sync::{Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
