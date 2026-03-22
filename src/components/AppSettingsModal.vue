@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import SettingsModal from "./SettingsModal.vue";
+import type { SettingGroup } from "../types";
 
 const props = defineProps<{
   show: boolean;
@@ -19,7 +20,7 @@ const appConfig = computed({
   set: (val) => emit("update:settings", val)
 });
 
-const settingsGroups = [
+const settingsGroups: SettingGroup[] = [
   {
     id: 'analysis',
     title: '解析范围',
