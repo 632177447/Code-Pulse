@@ -10,15 +10,34 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:show', 'update:settings', 'save', 'cancel']);
 
+const STORAGE_KEY = 'settings_expanded_groups';
+
 const localSettings = reactive({ ...props.settings });
-const expandedGroups = ref<string[]>([props.groups[0]?.id]);
+
+// 初始化展开状态：从 localStorage 读取或默认全展开
+const getInitialExpandedGroups = () => {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      return JSON.parse(saved);
+    } catch (e) {
+      console.error('Failed to parse expanded groups:', e);
+    }
+  }
+  // 默认全部展开
+  return props.groups.map(g => g.id);
+};
+
+const expandedGroups = ref<string[]>(getInitialExpandedGroups());
+
+// 监听展开状态并持久化
+watch(expandedGroups, (newVal) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
+}, { deep: true });
 
 watch(() => props.show, (newVal) => {
   if (newVal) {
     Object.assign(localSettings, props.settings);
-    if (expandedGroups.value.length === 0 && props.groups.length > 0) {
-      expandedGroups.value = [props.groups[0].id];
-    }
   }
 });
 
@@ -67,7 +86,7 @@ const isExpanded = (groupId: string) => expandedGroups.value.includes(groupId);
         <template v-for="group in groups" :key="group.id">
           <div class="space-y-2 mb-1">
             <h4 
-              class="text-[13px] font-black uppercase tracking-[0.25em] flex items-center justify-between py-2 mb-2 cursor-pointer select-none transition-all hover:opacity-70" 
+              class="text-[14px] font-black uppercase tracking-[0.25em] flex items-center justify-between py-2 mb-2 cursor-pointer select-none transition-all hover:opacity-70" 
               :style="{ color: group.color || 'var(--color-app-primary)' }"
               @click="toggleGroup(group.id)"
             >
