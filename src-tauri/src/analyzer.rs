@@ -1,12 +1,16 @@
 use crate::minimizer;
 use regex::Regex;
 use serde::Serialize;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::SystemTime;
 use walkdir::WalkDir;
+
+// (规范化绝对路径, 文件最后修改时间) -> (display_path, 最终内容字符串)
+type ParseCache = Mutex<HashMap<(PathBuf, SystemTime), (String, String)>>;
 
 // =============================================================================
 // 文件扩展名分类与配置
@@ -547,7 +551,8 @@ pub fn analyze_dependencies(
     included_types: Vec<String>, 
     project_roots: String, 
     enable_minimization: bool,
-    abort_handle: Option<Arc<AtomicBool>>
+    abort_handle: Option<Arc<AtomicBool>>,
+    parse_cache: Arc<ParseCache>
 ) -> Result<Vec<FileNode>, String> {
     let mut visited: HashSet<PathBuf> = HashSet::new();
     let mut result_blocks: Vec<FileNode> = Vec::new();
@@ -593,7 +598,7 @@ pub fn analyze_dependencies(
                         process_file(e_path, 0, max_depth, &mut visited, &mut result_blocks, &mut parsed_paths, &base_path, 
                             &ignore_names, &ignore_extensions, &ignore_filenames, &ignore_regexes,
                             &ignore_deep_names, &ignore_deep_extensions, &ignore_deep_filenames, &ignore_deep_regexes,
-                            &included_types_set, enable_minimization, abort_handle.as_ref());
+                            &included_types_set, enable_minimization, abort_handle.as_ref(), &parse_cache);
                     }
                 }
             }
@@ -601,7 +606,7 @@ pub fn analyze_dependencies(
             process_file(path, 0, max_depth, &mut visited, &mut result_blocks, &mut parsed_paths, &base_path, 
                 &ignore_names, &ignore_extensions, &ignore_filenames, &ignore_regexes,
                 &ignore_deep_names, &ignore_deep_extensions, &ignore_deep_filenames, &ignore_deep_regexes,
-                &included_types_set, enable_minimization, abort_handle.as_ref());
+                &included_types_set, enable_minimization, abort_handle.as_ref(), &parse_cache);
         }
     }
 
@@ -672,7 +677,8 @@ fn process_file(
     ignore_deep_regexes: &[Regex],
     included_types: &HashSet<String>,
     enable_minimization: bool,
-    abort_handle: Option<&Arc<AtomicBool>>
+    abort_handle: Option<&Arc<AtomicBool>>,
+    parse_cache: &ParseCache
 ) {
     if let Some(h) = abort_handle {
         if h.load(Ordering::SeqCst) { return; }
@@ -692,7 +698,43 @@ fn process_file(
     }
     
     visited.insert(abs_path.clone());
-    
+
+    // 尝试获取文件修改时间作为缓存 key 的一部分
+    let mtime = fs::metadata(&abs_path).ok().and_then(|m| m.modified().ok());
+    let cache_key = mtime.map(|t| (abs_path.clone(), t));
+
+    // 查询缓存：命中则直接复用，跳过读文件和解析
+    if let Some(ref key) = cache_key {
+        if let Ok(cache) = parse_cache.lock() {
+            if let Some((cached_display, cached_content)) = cache.get(key) {
+                parsed_paths.push(cached_display.clone());
+                result_blocks.push(FileNode {
+                    path: cached_display.clone(),
+                    content: cached_content.clone(),
+                    abs_path: abs_path.to_string_lossy().into_owned(),
+                });
+                // 缓存命中时仍需继续追踪依赖，使用已缓存的原始内容重新提取
+                // 注意：依赖解析本身很快（只是正则），重 IO 部分已命中缓存
+                drop(cache);
+                if let Ok(content) = fs::read_to_string(&abs_path) {
+                    let ext = abs_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                    if !should_ignore(&abs_path, ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes) {
+                        let base_dir = abs_path.parent().unwrap_or(Path::new(""));
+                        for dep in extract_dependencies(&content, ext) {
+                            if let Some(resolved) = resolve_path(base_dir, &dep, ext, base_path) {
+                                process_file(&resolved, current_depth + 1, max_depth, visited, result_blocks, parsed_paths, base_path,
+                                    ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
+                                    ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes,
+                                    included_types, enable_minimization, abort_handle, parse_cache);
+                            }
+                        }
+                    }
+                }
+                return;
+            }
+        }
+    }
+
     if let Ok(content) = fs::read_to_string(&abs_path) {
         let mut display_path_str = abs_path.to_string_lossy().into_owned();
         if let Ok(rel_path) = abs_path.strip_prefix(base_path) {
@@ -719,12 +761,21 @@ fn process_file(
             }
         }
 
+        let formatted_content = format!(
+            "========================================\n[FILE PATH]: {}\n(Dependency Layer: {})\n========================================\n[CONTENT START]\n{}\n[CONTENT END]",
+            display_path_str, current_depth, final_content
+        );
+
+        // 写入缓存（仅当能获取到 mtime 时）
+        if let Some(ref key) = cache_key {
+            if let Ok(mut cache) = parse_cache.lock() {
+                cache.insert(key.clone(), (display_path_str.clone(), formatted_content.clone()));
+            }
+        }
+
         result_blocks.push(FileNode {
             path: display_path_str.clone(),
-            content: format!(
-                "========================================\n[FILE PATH]: {}\n(Dependency Layer: {})\n========================================\n[CONTENT START]\n{}\n[CONTENT END]", 
-                display_path_str, current_depth, final_content
-            ),
+            content: formatted_content,
             abs_path: abs_path.to_string_lossy().into_owned(),
         });
         
@@ -737,7 +788,7 @@ fn process_file(
                     process_file(&resolved, current_depth + 1, max_depth, visited, result_blocks, parsed_paths, base_path, 
                         ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
                         ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes,
-                        included_types, enable_minimization, abort_handle);
+                        included_types, enable_minimization, abort_handle, parse_cache);
                 }
             }
         }

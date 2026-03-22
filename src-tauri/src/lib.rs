@@ -1,12 +1,18 @@
 mod analyzer;
 mod minimizer;
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 use std::fs;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+
+// (规范化绝对路径, 文件最后修改时间) -> (display_path, 最终内容字符串)
+type ParseCache = Mutex<HashMap<(PathBuf, SystemTime), (String, String)>>;
 
 struct AppState {
     abort_handle: Arc<AtomicBool>,
+    parse_cache: Arc<ParseCache>,
 }
 
 #[tauri::command]
@@ -22,6 +28,7 @@ async fn generate_context(
 ) -> Result<Vec<analyzer::FileNode>, String> {
     state.abort_handle.store(false, Ordering::SeqCst);
     let abort_handle = state.abort_handle.clone();
+    let parse_cache = state.parse_cache.clone();
 
     // 将 CPU 密集型的同步文件遍历移到专用 blocking 线程池
     // 避免占用 Tauri 的异步调度线程，从而解除对 webview IPC 通道的阻塞
@@ -34,7 +41,8 @@ async fn generate_context(
             included_types, 
             project_roots, 
             enable_minimization,
-            Some(abort_handle)
+            Some(abort_handle),
+            parse_cache
         )
     }).await.map_err(|e| e.to_string())?
 }
@@ -99,6 +107,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
             abort_handle: Arc::new(AtomicBool::new(false)),
+            parse_cache: Arc::new(Mutex::new(HashMap::new())),
         })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
