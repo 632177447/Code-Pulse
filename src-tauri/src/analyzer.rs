@@ -8,6 +8,70 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 use walkdir::WalkDir;
 
+// =============================================================================
+// 文件扩展名分类与配置
+// =============================================================================
+
+/// 所有支持解析并包含在分析结果中的文件扩展名
+const ALL_SUPPORTED_EXTS: &[&str] = &[
+    "js", "mjs", "jsx", "ts", "tsx", "vue", "svelte", "py", "rs", "go",
+    "java", "kt", "c", "cpp", "h", "hpp", "cs", "php", "rb", "css", "scss", "less"
+];
+
+/// JavaScript/TypeScript 及其相关框架（用于依赖分析）
+const JS_TS_FAMILY: &[&str] = &["js", "mjs", "jsx", "ts", "tsx", "vue", "svelte"];
+
+/// 使用 C 风格注释 (//, /* */) 的扩展名
+const C_STYLE_COMMENT_EXTS: &[&str] = &[
+    "js", "mjs", "jsx", "ts", "tsx", "rs", "go", "java", "kt", "c", "cpp", "h", "hpp", "cs", "php", "css", "scss", "less"
+];
+
+/// 使用 # 号注释的扩展名 (Python, Ruby)
+const HASH_STYLE_COMMENT_EXTS: &[&str] = &["py", "rb"];
+
+/// 混合注释风格 (HTML + C) 的扩展名 (Vue, Svelte)
+const MIXED_STYLE_COMMENT_EXTS: &[&str] = &["vue", "svelte"];
+
+/// C/C++ 家族（用于路径解析）
+const C_CPP_FAMILY: &[&str] = &["cpp", "c", "h", "hpp"];
+
+/// Java/Kotlin 家族 (用于路径解析)
+const JAVA_KT_FAMILY: &[&str] = &["java", "kt"];
+
+/// 样式文件系列 (用于风格定义与解析)
+const STYLE_FAMILY: &[&str] = &["css", "scss", "less"];
+
+/// HTML 关联解析扩展名
+const HTML_RESOLVE_EXTS: &[&str] = &["js", "css", "html"];
+
+/// Markdown 关联解析扩展名 (多用于文档链接校验)
+const MD_RESOLVE_EXTS: &[&str] = &["md", "png", "jpg", "jpeg", "svg"];
+
+/// 项目根目录标识文件
+const PROJECT_ROOT_MARKERS: &[&str] = &[
+    "package.json", "Cargo.toml", ".git", "go.mod", "go.work",
+    "pyproject.toml", "requirements.txt", "pom.xml", 
+    "build.gradle", "composer.json", "Gemfile", "Makefile",
+    "pnpm-workspace.yaml", "lerna.json", "nx.json", "deno.json",
+    "tsconfig.json", "jsconfig.json"
+];
+
+/// 默认忽略的文件/目录模式
+const DEFAULT_IGNORE_PATTERNS: &[&str] = &[
+    "node_modules", ".git", "dist", "target", "build", ".vscode", ".idea", 
+    ".next", ".nuxt", ".output", ".vercel", ".github", 
+    "__pycache__", ".venv", ".pytest_cache", ".gradle", ".m2", "bin", "obj",
+    "*.lock", "*-lock.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
+    ".jpg", ".jpeg", ".png", ".gif", ".svg", ".ico", ".webp",
+    ".mp4", ".avi", ".mkv", ".mov", ".webm",
+    ".mp3", ".wav", ".flac", ".aac", ".ogg",
+    ".zip", ".tar", ".gz", ".7z", ".rar",
+    ".exe", ".dll", ".so", ".dylib",
+    ".log", ".tmp", ".temp", ".swp", ".DS_Store"
+];
+
+
+
 // js/ts: import { ... } from "..." | import "..." | require("...")
 static JS_RE: OnceLock<Regex> = OnceLock::new();
 // python: import ... | from ... import ...
@@ -61,7 +125,7 @@ fn get_html_comment_re() -> &'static Regex {
 
 fn strip_comments(content: &str, ext: &str) -> String {
     match ext {
-        "js" | "mjs" | "jsx" | "ts" | "tsx" | "rs" | "go" | "java" | "kt" | "c" | "cpp" | "h" | "hpp" | "cs" | "php" | "css" | "scss" | "less" => {
+        e if C_STYLE_COMMENT_EXTS.contains(&e) => {
             let re = get_c_style_re();
             re.replace_all(content, |caps: &regex::Captures| {
                 let m = caps.get(0).unwrap().as_str();
@@ -73,7 +137,7 @@ fn strip_comments(content: &str, ext: &str) -> String {
                 }
             }).into_owned()
         }
-        "py" | "rb" => {
+        e if HASH_STYLE_COMMENT_EXTS.contains(&e) => {
             let re = get_hash_style_re();
             re.replace_all(content, |caps: &regex::Captures| {
                 let m = caps.get(0).unwrap().as_str();
@@ -91,7 +155,7 @@ fn strip_comments(content: &str, ext: &str) -> String {
                 m.chars().map(|c| if c == '\n' { '\n' } else { ' ' }).collect::<String>()
             }).into_owned()
         }
-        "vue" | "svelte" => {
+        e if MIXED_STYLE_COMMENT_EXTS.contains(&e) => {
             // 先剥离 HTML 注释，再剥离 JS 注释
             let html_re = get_html_comment_re();
             let intermediate = html_re.replace_all(content, |caps: &regex::Captures| {
@@ -196,7 +260,7 @@ fn extract_dependencies(content: &str, ext: &str) -> Vec<String> {
     let content_stripped = strip_comments(content, ext);
     let content_lf = content_stripped.replace("\r\n", "\n");
     match ext {
-        "js" | "mjs" | "jsx" | "ts" | "tsx" | "vue" | "svelte" => {
+        e if JS_TS_FAMILY.contains(&e) => {
             let re = get_js_re();
             for cap in re.captures_iter(&content_lf) {
                 if let Some(m) = cap.get(1).or(cap.get(2)).or(cap.get(3)) {
@@ -247,7 +311,7 @@ fn extract_dependencies(content: &str, ext: &str) -> Vec<String> {
                 }
             }
         }
-        "java" | "kt" => {
+        e if JAVA_KT_FAMILY.contains(&e) => {
             let re = get_java_re();
             for cap in re.captures_iter(&content_lf) {
                 if let Some(m) = cap.get(1) {
@@ -255,7 +319,7 @@ fn extract_dependencies(content: &str, ext: &str) -> Vec<String> {
                 }
             }
         }
-        "c" | "cpp" | "h" | "hpp" => {
+        e if C_CPP_FAMILY.contains(&e) => {
             let re = get_cpp_re();
             for cap in re.captures_iter(&content_lf) {
                 if let Some(m) = cap.get(1) {
@@ -287,7 +351,7 @@ fn extract_dependencies(content: &str, ext: &str) -> Vec<String> {
                 }
             }
         }
-        "css" | "scss" | "less" => {
+        e if STYLE_FAMILY.contains(&e) => {
             let re = get_css_re();
             for cap in re.captures_iter(&content_lf) {
                 if let Some(m) = cap.get(1).or(cap.get(2)) {
@@ -330,18 +394,18 @@ fn resolve_path(base_dir: &Path, import_path: &str, ext: &str, project_root: &Pa
     }
 
     let extensions = match ext {
-        "js" | "mjs" | "jsx" | "ts" | "tsx" | "vue" | "svelte" => vec!["ts", "js", "mjs", "tsx", "jsx", "vue", "svelte"],
+        e if JS_TS_FAMILY.contains(&e) => JS_TS_FAMILY.to_vec(),
         "py" => vec!["py"],
         "rs" => vec!["rs"],
         "go" => vec!["go"],
-        "java" | "kt" => vec!["java", "kt"],
-        "c" | "cpp" | "h" | "hpp" => vec!["cpp", "c", "h", "hpp"],
+        e if JAVA_KT_FAMILY.contains(&e) => JAVA_KT_FAMILY.to_vec(),
+        e if C_CPP_FAMILY.contains(&e) => C_CPP_FAMILY.to_vec(),
         "cs" => vec!["cs"],
         "php" => vec!["php"],
         "rb" => vec!["rb"],
-        "css" | "scss" | "less" => vec!["css", "scss", "less"],
-        "html" => vec!["js", "css", "html"],
-        "md" => vec!["md", "png", "jpg", "jpeg", "svg"],
+        e if STYLE_FAMILY.contains(&e) => STYLE_FAMILY.to_vec(),
+        "html" => HTML_RESOLVE_EXTS.to_vec(),
+        "md" => MD_RESOLVE_EXTS.to_vec(),
         _ => vec![],
     };
 
@@ -401,17 +465,9 @@ fn find_project_root(start_path: &Path, manual_roots: &[PathBuf]) -> PathBuf {
     }
 
     // 2. 增加对多种编程语言和构建工具根目录标识文件的支持，确保在不同类型的项目中都能准确识别根节点
-    let root_markers = [
-        "package.json", "Cargo.toml", ".git", "go.mod", "go.work",
-        "pyproject.toml", "requirements.txt", "pom.xml", 
-        "build.gradle", "composer.json", "Gemfile", "Makefile",
-        "pnpm-workspace.yaml", "lerna.json", "nx.json", "deno.json",
-        "tsconfig.json", "jsconfig.json"
-    ];
-
     let mut current = start_path;
     loop {
-        for marker in &root_markers {
+        for marker in PROJECT_ROOT_MARKERS {
             if current.join(marker).exists() {
                 // 找到标识文件后尝试规范化路径，确保后续相对路径解析（如 @/ 或 crate/）的基准一致
                 if let Ok(canon) = current.canonicalize() {
@@ -441,13 +497,13 @@ fn find_project_root(start_path: &Path, manual_roots: &[PathBuf]) -> PathBuf {
     }
 }
 
-fn parse_ignore_patterns(raw: &str, defaults: Vec<String>) -> (HashSet<String>, HashSet<String>, HashSet<String>, Vec<Regex>) {
+fn parse_ignore_patterns(raw: &str, defaults: &[&str]) -> (HashSet<String>, HashSet<String>, HashSet<String>, Vec<Regex>) {
     let mut names = HashSet::new();
     let mut exts = HashSet::new();
     let mut fnames = HashSet::new();
     let mut regexes = Vec::new();
 
-    let mut all_patterns = defaults;
+    let mut all_patterns: Vec<String> = defaults.iter().map(|&s| s.to_string()).collect();
     if !raw.is_empty() {
         for p in raw.split(|c| c == ',' || c == '\n' || c == '\r') {
             let s = p.trim().to_string();
@@ -505,30 +561,16 @@ pub fn analyze_dependencies(
         .collect();
 
     let included_types_set: HashSet<String> = if included_types.is_empty() {
-        vec!["js", "mjs", "jsx", "ts", "tsx", "vue", "svelte", "py", "rs", "go", "java", "kt", "c", "cpp", "h", "hpp", "cs", "php", "rb", "css", "scss", "less"]
-            .into_iter().map(|s| s.to_string()).collect()
+        ALL_SUPPORTED_EXTS.iter().map(|&s| s.to_string()).collect()
     } else {
         included_types.into_iter().map(|s| s.to_lowercase()).collect()
     };
 
-    let ignores_defaults: Vec<String> = vec![
-        "node_modules", ".git", "dist", "target", "build", ".vscode", ".idea", 
-        ".next", ".nuxt", ".output", ".vercel", ".github", 
-        "__pycache__", ".venv", ".pytest_cache", ".gradle", ".m2", "bin", "obj",
-        "*.lock", "*-lock.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
-        ".jpg", ".jpeg", ".png", ".gif", ".svg", ".ico", ".webp",
-        ".mp4", ".avi", ".mkv", ".mov", ".webm",
-        ".mp3", ".wav", ".flac", ".aac", ".ogg",
-        ".zip", ".tar", ".gz", ".7z", ".rar",
-        ".exe", ".dll", ".so", ".dylib",
-        ".log", ".tmp", ".temp", ".swp", ".DS_Store"
-    ].into_iter().map(|s| s.to_string()).collect();
-
     let (ignore_names, ignore_extensions, ignore_filenames, ignore_regexes) = 
-        parse_ignore_patterns(&ignore_exts, ignores_defaults);
+        parse_ignore_patterns(&ignore_exts, DEFAULT_IGNORE_PATTERNS);
 
     let (ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes) = 
-        parse_ignore_patterns(&ignore_deep_parse, vec![]);
+        parse_ignore_patterns(&ignore_deep_parse, &[]);
 
     for p_str in paths {
         let path = Path::new(&p_str);
@@ -670,7 +712,7 @@ fn process_file(
             // Only minimize for JS/TS/Rust/Go/Java/C++ etc. (bracket-based languages)
             let ext = abs_path.extension().and_then(|e| e.to_str()).unwrap_or("");
             match ext {
-                "js" | "mjs" | "jsx" | "ts" | "tsx" | "rs" | "go" | "java" | "kt" | "c" | "cpp" | "h" | "hpp" | "cs" | "php" | "css" | "scss" | "less" => {
+                e if C_STYLE_COMMENT_EXTS.contains(&e) => {
                     final_content = minimizer::minimize_code(&content);
                 }
                 _ => {}
