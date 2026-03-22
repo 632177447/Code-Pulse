@@ -7,6 +7,9 @@ import AppSettingsModal from "./components/AppSettingsModal.vue";
 import DependencyTreeSidebar from "./components/DependencyTreeSidebar.vue";
 import ContextWorker from "./workers/context.worker.ts?worker";
 import { normalizePath, isBinaryFile, copyToClipboard, handleWheelHorizontal } from "./utils";
+import pkg from "../package.json";
+
+const version = pkg.version;
 
 const outputContext = ref("");
 const fileNodes = ref<{path: string, content: string, abs_path: string, originId?: string}[]>([]);
@@ -498,6 +501,11 @@ function handleWheel(e: WheelEvent) {
       :settings="appConfig"
       @update:settings="val => Object.assign(appConfig, val)"
     />
+
+    <!-- Version Info -->
+    <div class="fixed bottom-2 right-3 text-[10px] font-mono text-app-text-mute opacity-30 select-none pointer-events-none z-0">
+      v{{ version }}
+    </div>
   </main>
 </template>
 
