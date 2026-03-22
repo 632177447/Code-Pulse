@@ -409,7 +409,7 @@ function handleWheel(e: WheelEvent) {
     <div class="w-full max-w-6xl mb-8 flex justify-center shrink-0">
         <button 
           @click="isLoading ? stopProcessing() : processPaths(filesList.map(f => f.path))"
-          :disabled="filesList.length === 0"
+          :disabled="filesList.length === 0 && !isLoading"
           class="h-14 px-10 group/btn bg-app-text hover:bg-app-primary text-app-bg font-black rounded-2xl shadow-xl shadow-app-text/10 transition-all active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed flex items-center gap-3 cursor-pointer"
           :class="isLoading ? 'hover:bg-app-rose!' : ''"
         >

@@ -42,7 +42,7 @@ function bubbleDelete(fullPath: string, absPath: string, originIds?: string[]) {
   >
     <div 
       class="flex items-center justify-between group py-1 px-2 rounded-xl hover:bg-app-surface-hover transition-all duration-300"
-      :class="node.isDirectory ? 'mb-0.5 cursor-pointer' : ''"
+      :class="node.isDirectory ? 'mb-0.5 cursor-pointer' : 'cursor-default'"
       @click="toggle"
     >
       <div class="flex items-center space-x-2.5 overflow-hidden">
