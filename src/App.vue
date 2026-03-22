@@ -6,6 +6,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import AppSettingsModal from "./components/AppSettingsModal.vue";
 import DependencyTreeSidebar from "./components/DependencyTreeSidebar.vue";
 import ContextWorker from "./workers/context.worker.ts?worker";
+import { normalizePath, isBinaryFile, copyToClipboard, handleWheelHorizontal } from "./utils";
 
 const outputContext = ref("");
 const fileNodes = ref<{path: string, content: string, abs_path: string, originId?: string}[]>([]);
@@ -111,8 +112,19 @@ onMounted(async () => {
       const nodeZone = el?.closest('[data-drop-path]') as HTMLElement | null;
 
       if (paths && paths.length > 0) {
+        // 过滤非文本文件（二进制文件直接拦截，不进入列表）
+        const validPaths = (paths as string[]).filter(p => !isBinaryFile(p));
+        const hasBlocked = (paths as string[]).length > validPaths.length;
+
+        if (hasBlocked && validPaths.length === 0) {
+            alert('禁止拖入非文本内容（如图片、视频、压缩包等二进制文件）');
+            return;
+        } else if (hasBlocked) {
+            console.warn('一些非文本文件已被自动跳过');
+        }
+
         if (dropZone) {
-          const newItems = (paths as string[]).map((p: string) => ({
+          const newItems = validPaths.map((p: string) => ({
             id: Math.random().toString(36).substring(2, 11),
             path: p
           }));
@@ -120,7 +132,7 @@ onMounted(async () => {
           if (appConfig.autoGenerate) processPaths(newItems.map((i: {path: string}) => i.path));
         } else if (nodeZone) {
           const destDir = nodeZone.dataset.dropPath;
-          if (destDir) handleTreeUploadFiles(paths, destDir);
+          if (destDir) handleTreeUploadFiles(validPaths, destDir);
         }
       }
       lastHighlightedNode = null;
@@ -159,11 +171,10 @@ async function processPaths(paths: string[]) {
     if (requestId !== currentRequestId.value) return;
 
     fileNodes.value = result.map(node => {
-        const normalize = (p: string) => p.replace(/\\/g, '/').toLowerCase().trim().replace(/^\\\\?\\/, '').replace(/^\/\/\?\//, '').replace(/\/+$/, '');
-        const nNodeAbs = normalize(node.abs_path);
+        const nNodeAbs = normalizePath(node.abs_path);
         
         const origin = filesList.value.find(f => {
-            const nf = normalize(f.path);
+            const nf = normalizePath(f.path);
             return nNodeAbs === nf || nNodeAbs.startsWith(nf + '/');
         });
         
@@ -242,13 +253,8 @@ async function handleTreeUploadFiles(files: string[], destDir: string) {
     }
 }
 
-async function copyToClipboard() {
-  if (!outputContext.value) return;
-  try {
-    await navigator.clipboard.writeText(outputContext.value);
-  } catch (e) {
-    console.error(e);
-  }
+async function copyToClipboardAll() {
+  await copyToClipboard(outputContext.value);
 }
 
 async function toggleEdit() {
@@ -308,13 +314,7 @@ function removeFile(index: number) {
 
 const fileListContainer = ref<HTMLElement | null>(null);
 function handleWheel(e: WheelEvent) {
-    if (fileListContainer.value) {
-        e.preventDefault();
-        fileListContainer.value.scrollBy({
-            left: e.deltaY,
-            behavior: 'smooth'
-        });
-    }
+    handleWheelHorizontal(e, fileListContainer.value);
 }
 </script>
 
@@ -458,7 +458,7 @@ function handleWheel(e: WheelEvent) {
             </button>
             <button 
               v-if="outputContext"
-              @click="copyToClipboard"
+              @click="copyToClipboardAll"
               class="p-2 py-1.5 bg-app-text hover:bg-app-text/90 text-app-bg text-[11px] font-black rounded-lg transition-all active:scale-95 flex items-center gap-1.5 shadow-sm cursor-pointer"
               title="复制全部"
             >

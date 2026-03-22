@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import FileTreeNode from './FileTreeNode.vue';
+import { getDirname } from '../utils';
 
 const props = defineProps<{
   nodes: {path: string, content: string, abs_path: string, originId?: string}[];
@@ -15,11 +16,6 @@ const emit = defineEmits<{
 const root = computed(() => {
   const tree: Record<string, any> = {};
   const sortedNodes = [...props.nodes].sort((a, b) => a.path.localeCompare(b.path));
-
-  function getDirname(p: string) {
-      const lastSlash = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
-      return lastSlash > -1 ? p.substring(0, lastSlash) : p;
-  }
 
   sortedNodes.forEach(node => {
     const parts = node.path.split('/');
