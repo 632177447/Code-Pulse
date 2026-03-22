@@ -14,6 +14,8 @@ const version = pkg.version;
 const outputContext = ref("");
 const fileNodes = ref<{path: string, content: string, abs_path: string, originId?: string}[]>([]);
 const isDragging = ref(false);
+const isInvalidDrag = ref(false);
+let isDraggingInvalidFiles = false; // 非响应式，仅用于跨事件保持状态
 const isLoading = ref(false);
 const filesList = ref<{id: string, path: string}[]>([]);
 const isSettingsOpen = ref(false);
@@ -92,23 +94,41 @@ onMounted(async () => {
         const nodeZone = el?.closest('[data-drop-path]') as HTMLElement | null;
 
         isDragging.value = !!dropZone;
+        
+        // 实时检查是否包含二进制文件 (在 enter 阶段就捕获 paths 并锁定状态)
+        if (type === 'enter' && paths && paths.length > 0) {
+            isDraggingInvalidFiles = (paths as string[]).some(p => isBinaryFile(p));
+        }
+
+        isInvalidDrag.value = isDragging.value && isDraggingInvalidFiles;
 
         if (nodeZone !== lastHighlightedNode) {
-          if (lastHighlightedNode) lastHighlightedNode.classList.remove('drop-node-hover');
-          if (nodeZone) nodeZone.classList.add('drop-node-hover');
+          if (lastHighlightedNode) {
+              lastHighlightedNode.classList.remove('drop-node-hover');
+              lastHighlightedNode.classList.remove('drop-node-hover-invalid');
+          }
+          if (nodeZone) {
+              nodeZone.classList.add(isInvalidDrag.value ? 'drop-node-hover-invalid' : 'drop-node-hover');
+          }
           lastHighlightedNode = nodeZone;
         }
       }
     } else if (type === 'leave') {
       isDragging.value = false;
+      isInvalidDrag.value = false;
+      isDraggingInvalidFiles = false;
       if (lastHighlightedNode) {
         lastHighlightedNode.classList.remove('drop-node-hover');
+        lastHighlightedNode.classList.remove('drop-node-hover-invalid');
         lastHighlightedNode = null;
       }
     } else if (type === 'drop') {
       isDragging.value = false;
+      isInvalidDrag.value = false;
+      isDraggingInvalidFiles = false;
       if (lastHighlightedNode) {
         lastHighlightedNode.classList.remove('drop-node-hover');
+        lastHighlightedNode.classList.remove('drop-node-hover-invalid');
       }
       
       const el = position ? document.elementFromPoint(lx, ly) : null;
@@ -121,7 +141,7 @@ onMounted(async () => {
         const hasBlocked = (paths as string[]).length > validPaths.length;
 
         if (hasBlocked && validPaths.length === 0) {
-            alert('禁止拖入非文本内容（如图片、视频、压缩包等二进制文件）');
+            // 已自动阻止非文本文件
             return;
         } else if (hasBlocked) {
             console.warn('一些非文本文件已被自动跳过');
@@ -353,7 +373,7 @@ function handleWheel(e: WheelEvent) {
       <div 
         data-drop-zone="main"
         class="h-56 rounded-3xl border-2 border-dashed flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden group shadow-app-md bg-app-surface/50 backdrop-blur-sm"
-        :class="isDragging ? 'border-app-primary bg-app-primary-light ring-4 ring-app-primary/5' : 'border-app-border hover:border-app-primary/40 hover:bg-app-surface'"
+        :class="isDragging ? (isInvalidDrag ? 'border-app-rose bg-app-rose/5 ring-4 ring-app-rose/5' : 'border-app-primary bg-app-primary-light ring-4 ring-app-primary/5') : 'border-app-border hover:border-app-primary/40 hover:bg-app-surface'"
       >
         <div class="flex flex-col items-center space-y-3 z-10 w-full px-6">
           <div class="w-12 h-12 flex items-center justify-center bg-app-surface rounded-2xl shadow-sm transition-all duration-500 pointer-events-none">
@@ -361,8 +381,8 @@ function handleWheel(e: WheelEvent) {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
           </div>
-          <p class="text-base font-bold text-app-text-dim group-hover:text-app-text transition-colors tracking-tight pointer-events-none">
-            {{ isDragging ? '松开即刻解析...' : '拖入代码文件或功能块目录' }}
+          <p class="text-base font-bold text-app-text-dim group-hover:text-app-text transition-colors tracking-tight pointer-events-none" :class="isInvalidDrag ? 'text-app-rose' : ''">
+            {{ isDragging ? (isInvalidDrag ? '包含不受支持的二进制文件' : '松开即刻解析...') : '拖入代码文件或功能块目录' }}
           </p>
           <div v-if="!isDragging" class="flex gap-2 pt-1">
               <button @click="triggerFileInput" class="px-3 py-1 bg-app-bg text-[11px] font-bold text-app-text-dim hover:text-app-text border border-app-border rounded-lg hover:border-app-primary/50 transition-all cursor-pointer shadow-sm">添加文件</button>
@@ -552,6 +572,12 @@ function handleWheel(e: WheelEvent) {
 .drop-node-hover {
   background-color: var(--color-app-primary-light) !important;
   box-shadow: 0 0 0 1px var(--color-app-primary) inset;
+  border-radius: 12px;
+}
+
+.drop-node-hover-invalid {
+  background-color: rgba(244, 63, 94, 0.08) !important;
+  box-shadow: 0 0 0 1px var(--color-app-rose) inset;
   border-radius: 12px;
 }
 </style>
