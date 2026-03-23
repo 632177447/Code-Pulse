@@ -8,7 +8,8 @@ use super::constants::*;
 // js/ts: import { ... } from "..." | import "..." | require("...")
 static JS_RE: OnceLock<Regex> = OnceLock::new();
 // python: import ... | from ... import ...
-static PY_RE: OnceLock<Regex> = OnceLock::new();
+static PY_IMPORT_RE: OnceLock<Regex> = OnceLock::new();
+static PY_FROM_RE: OnceLock<Regex> = OnceLock::new();
 // rust: use ...; | mod ...;
 static RS_RE: OnceLock<Regex> = OnceLock::new();
 // go: import "..." | import ( ... )
@@ -118,21 +119,27 @@ pub fn get_js_re() -> &'static Regex {
     })
 }
 
-pub fn get_py_re() -> &'static Regex {
-    PY_RE.get_or_init(|| {
-        Regex::new(r#"(?m)^\s*(?:import|from)\s+([a-zA-Z0-9_\.]+)"#).unwrap()
+pub fn get_py_import_re() -> &'static Regex {
+    PY_IMPORT_RE.get_or_init(|| {
+        Regex::new(r#"(?m)^\s*import\s+([^\n]+)"#).unwrap()
+    })
+}
+
+pub fn get_py_from_re() -> &'static Regex {
+    PY_FROM_RE.get_or_init(|| {
+        Regex::new(r#"(?m)^\s*from\s+([a-zA-Z0-9_\.]+|\.+)\s+import\s+([^\n]+)"#).unwrap()
     })
 }
 
 pub fn get_rs_re() -> &'static Regex {
     RS_RE.get_or_init(|| {
-        Regex::new(r#"(?m)^\s*(?:use|mod)\s+([a-zA-Z0-9_:]+)"#).unwrap()
+        Regex::new(r#"(?m)^\s*(?:(?:pub(?:\([^)]*\))?\s+)?mod|use)\s+([a-zA-Z0-9_:]+)"#).unwrap()
     })
 }
 
 pub fn get_go_re() -> &'static Regex {
     GO_RE.get_or_init(|| {
-        Regex::new(r#"(?m)^\s*import\s+(?:\(\s*([\s\S]*?)\s*\)|['"]([^'"]+)['"])"#).unwrap()
+        Regex::new(r#"(?m)^\s*import\s+(?:\(\s*([\s\S]*?)\s*\)|(?:[._A-Za-z][\w\.]*\s+)?['"]([^'"]+)['"])"#).unwrap()
     })
 }
 
@@ -162,7 +169,7 @@ pub fn get_cs_re() -> &'static Regex {
 
 pub fn get_php_re() -> &'static Regex {
     PHP_RE.get_or_init(|| {
-        Regex::new(r#"(?m)^\s*(?:(?:require|include)(?:_once)?\s*['"]([^'"]+)['"]|use\s+([a-zA-Z0-9_\\]+);)"#).unwrap()
+        Regex::new(r#"(?m)^\s*(?:(?:require|include)(?:_once)?\s*\(?\s*['"]([^'"]+)['"]\s*\)?|use\s+([a-zA-Z0-9_\\]+)(?:\s+as\s+[a-zA-Z0-9_]+)?;)"#).unwrap()
     })
 }
 

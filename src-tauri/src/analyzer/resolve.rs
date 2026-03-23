@@ -76,6 +76,20 @@ pub fn resolve_path(base_dir: &Path, import_path: &str, ext: &str, project_root:
         }
         
         if t.is_dir() {
+            if ext == "py" {
+                let init_path = t.join("__init__.py");
+                if init_path.exists() {
+                    return Some(init_path);
+                }
+            }
+
+            if ext == "rs" {
+                let mod_path = t.join("mod.rs");
+                if mod_path.exists() {
+                    return Some(mod_path);
+                }
+            }
+
             for e in &extensions {
                 let index_path = t.join(format!("index.{}", e));
                 if index_path.exists() {
@@ -149,6 +163,38 @@ mod tests {
         fs::write(&target, "export {};").unwrap();
 
         let resolved = resolve_path(&base_dir, "./lazy.service?raw", "ts", &root);
+
+        assert_eq!(resolved, Some(target.clone()));
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn resolve_path_should_support_python_package_init_file() {
+        let root = create_test_root("resolve-python-init");
+        let base_dir = root.join("src").join("modules");
+        let package_dir = base_dir.join("services");
+        fs::create_dir_all(&package_dir).unwrap();
+        let target = package_dir.join("__init__.py");
+        fs::write(&target, "").unwrap();
+
+        let resolved = resolve_path(&base_dir, "./services", "py", &root);
+
+        assert_eq!(resolved, Some(target.clone()));
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn resolve_path_should_support_rust_mod_rs() {
+        let root = create_test_root("resolve-rust-mod");
+        let base_dir = root.join("src").join("modules");
+        let module_dir = base_dir.join("parser");
+        fs::create_dir_all(&module_dir).unwrap();
+        let target = module_dir.join("mod.rs");
+        fs::write(&target, "").unwrap();
+
+        let resolved = resolve_path(&base_dir, "./parser", "rs", &root);
 
         assert_eq!(resolved, Some(target.clone()));
 
