@@ -35,6 +35,26 @@
       "nsis": {
         "installerIcon": "icons/icon.ico"
       }
+    },
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerBundleIdentifier": null,
+      "signingConfig": null
+    },
+    "linux": {
+      "deb": {
+        "depends": [
+          "webkit2gtk-4.1",
+          "libjavascriptcoregtk-4.1-1",
+          "libgtk-3-0",
+          "libsoup-3.0-0"
+        ]
+      },
+      "appImage": {
+        "bundleMediaFramework": false
+      }
     }
   }
 }
