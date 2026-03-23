@@ -6,13 +6,16 @@ pub fn minimize_code(content: &str) -> String {
     // 状态追踪：字符串和注释
     let mut in_string: Option<char> = None;
     let mut in_comment: Option<char> = None; // '/' 代表 //, '*' 代表 /* */
+    let mut in_html_comment = false;
 
     while i < chars.len() {
         let c = chars[i];
 
         // --- 状态更新 ---
-        if in_comment.is_none() && in_string.is_none() {
-            if c == '"' || c == '\'' || c == '`' {
+        if !in_html_comment && in_comment.is_none() && in_string.is_none() {
+            if c == '<' && i + 3 < chars.len() && chars[i + 1] == '!' && chars[i + 2] == '-' && chars[i + 3] == '-' {
+                in_html_comment = true;
+            } else if c == '"' || c == '\'' || c == '`' {
                 in_string = Some(c);
             } else if c == '/' && i + 1 < chars.len() {
                 if chars[i + 1] == '/' {
@@ -25,6 +28,10 @@ pub fn minimize_code(content: &str) -> String {
             // 处理字符串结束（考虑转义）
             if c == q && (i == 0 || chars[i - 1] != '\\') {
                 in_string = None;
+            }
+        } else if in_html_comment {
+            if c == '>' && i >= 2 && chars[i - 1] == '-' && chars[i - 2] == '-' {
+                in_html_comment = false;
             }
         } else if let Some(com) = in_comment {
             // 处理注释结束
@@ -40,7 +47,7 @@ pub fn minimize_code(content: &str) -> String {
         }
 
         // --- 压缩逻辑 ---
-        if in_string.is_none() && in_comment.is_none() && c == '{' {
+        if in_string.is_none() && in_comment.is_none() && !in_html_comment && c == '{' {
             if should_compress(&chars, i) {
                 result.push('{');
                 
@@ -49,12 +56,15 @@ pub fn minimize_code(content: &str) -> String {
                 let mut j = i + 1;
                 let mut inner_string = None;
                 let mut inner_comment = None;
+                let mut inner_html_comment = false;
                 let mut found = false;
 
                 while j < chars.len() {
                     let ic = chars[j];
-                    if inner_comment.is_none() && inner_string.is_none() {
-                        if ic == '"' || ic == '\'' || ic == '`' {
+                    if !inner_html_comment && inner_comment.is_none() && inner_string.is_none() {
+                        if ic == '<' && j + 3 < chars.len() && chars[j + 1] == '!' && chars[j + 2] == '-' && chars[j + 3] == '-' {
+                            inner_html_comment = true;
+                        } else if ic == '"' || ic == '\'' || ic == '`' {
                             inner_string = Some(ic);
                         } else if ic == '/' && j + 1 < chars.len() {
                             if chars[j + 1] == '/' { inner_comment = Some('/'); }
@@ -67,6 +77,10 @@ pub fn minimize_code(content: &str) -> String {
                         }
                     } else if let Some(q) = inner_string {
                         if ic == q && (j == 0 || chars[j - 1] != '\\') { inner_string = None; }
+                    } else if inner_html_comment {
+                        if ic == '>' && j >= 2 && chars[j - 1] == '-' && chars[j - 2] == '-' {
+                            inner_html_comment = false;
+                        }
                     } else if let Some(com) = inner_comment {
                         if com == '/' && ic == '\n' { inner_comment = None; }
                         else if com == '*' && ic == '*' && j + 1 < chars.len() && chars[j + 1] == '/' {
@@ -88,6 +102,39 @@ pub fn minimize_code(content: &str) -> String {
 
         result.push(c);
         i += 1;
+    }
+
+    result
+}
+
+pub fn minimize_mixed_code(content: &str) -> String {
+    let mut result = String::with_capacity(content.len());
+    let mut rest = content;
+
+    loop {
+        let Some(script_start) = rest.find("<script") else {
+            result.push_str(rest);
+            break;
+        };
+
+        result.push_str(&rest[..script_start]);
+        let script_tag = &rest[script_start..];
+        let Some(open_end_offset) = script_tag.find('>') else {
+            result.push_str(script_tag);
+            break;
+        };
+        let open_end = script_start + open_end_offset + 1;
+        result.push_str(&rest[script_start..open_end]);
+
+        let script_body = &rest[open_end..];
+        let Some(close_offset) = script_body.find("</script>") else {
+            result.push_str(&minimize_code(script_body));
+            break;
+        };
+
+        result.push_str(&minimize_code(&script_body[..close_offset]));
+        result.push_str("</script>");
+        rest = &script_body[close_offset + "</script>".len()..];
     }
 
     result
@@ -142,4 +189,68 @@ fn is_allow_keyword(w: &str) -> bool {
 
 fn is_deny_keyword(w: &str) -> bool {
     matches!(w, "import" | "export" | "const" | "let" | "var" | "interface" | "type" | "enum" | "struct" | "class" | "impl" | "trait" | "return" | "yield" | "throw")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{minimize_code, minimize_mixed_code};
+
+    #[test]
+    fn minimizes_typescript_function_bodies() {
+        let input = r#"
+function foo() {
+  console.log("foo");
+}
+
+const bar = async () => {
+  return 1;
+};
+
+const config = {
+  theme: {
+    color: "red"
+  }
+};
+"#;
+
+        let minimized = minimize_code(input);
+
+        assert!(minimized.contains("function foo() { /* ... */ }"));
+        assert!(minimized.contains("const bar = async () => { /* ... */ };"));
+        assert!(minimized.contains("theme: {\n    color: \"red\"\n  }"));
+    }
+
+    #[test]
+    fn minimizes_vue_script_bodies_only() {
+        let input = r#"
+<template>
+  <div class="box">{{ count }}</div>
+</template>
+
+<script setup lang="ts">
+async function loadData() {
+  return await Promise.resolve(1);
+}
+
+const submit = () => {
+  return count.value + 1;
+};
+</script>
+
+<style scoped>
+.box { color: red; }
+@media (max-width: 768px) {
+  .box { color: blue; }
+}
+</style>
+"#;
+
+        let minimized = minimize_mixed_code(input);
+
+        assert!(minimized.contains("async function loadData() { /* ... */ }"));
+        assert!(minimized.contains("const submit = () => { /* ... */ };"));
+        assert!(minimized.contains(".box { color: red; }"));
+        assert!(minimized.contains("@media (max-width: 768px) {"));
+        assert!(!minimized.contains("@media (max-width: 768px) { /* ... */ }"));
+    }
 }

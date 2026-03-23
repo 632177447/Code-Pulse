@@ -21,6 +21,16 @@ use deps::{extract_dependencies, extract_vue_component_tags};
 use ignore::{parse_ignore_patterns, should_ignore};
 use resolve::{build_component_index, detect_auto_import_plugin, find_project_root, resolve_path};
 
+struct CollectedFile {
+    path: String,
+    raw_content: String,
+    minimized_content: Option<String>,
+    abs_path: PathBuf,
+    depth: usize,
+    ext: String,
+    mtime: Option<std::time::SystemTime>,
+}
+
 #[derive(Serialize)]
 pub struct FileNode {
     pub path: String,
@@ -42,9 +52,7 @@ pub fn analyze_dependencies(
     parse_cache: Arc<crate::cache::FileCache>
 ) -> Result<Vec<FileNode>, String> {
     let mut visited: HashSet<PathBuf> = HashSet::new();
-    let mut result_blocks: Vec<FileNode> = Vec::new();
-    let mut parsed_paths: Vec<String> = Vec::new();
-    let mut current_total_size = 0;
+    let mut result_blocks: Vec<CollectedFile> = Vec::new();
 
     let manual_roots: Vec<PathBuf> = project_roots
         .split(|c| c == ',' || c == '\n' || c == '\r')
@@ -95,7 +103,15 @@ pub fn analyze_dependencies(
         if path.is_dir() {
             for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
                 if let Some(ref h) = abort_handle {
-                    if h.load(Ordering::SeqCst) { return Ok(result_blocks); }
+                    if h.load(Ordering::SeqCst) {
+                        return Ok(finalize_result(
+                            result_blocks,
+                            enable_minimization,
+                            minimization_threshold,
+                            minimization_depth_threshold,
+                            &parse_cache,
+                        ));
+                    }
                 }
                 let e_path = entry.path();
                 if e_path.is_file() {
@@ -104,22 +120,28 @@ pub fn analyze_dependencies(
                         if should_ignore(e_path, &ignore_names, &ignore_extensions, &ignore_filenames, &ignore_regexes) {
                             continue;
                         }
-                        process_file(e_path, 0, max_depth, &mut visited, &mut result_blocks, &mut parsed_paths, &base_path, 
+                        process_file(e_path, 1, max_depth, &mut visited, &mut result_blocks, &base_path, 
                             &ignore_names, &ignore_extensions, &ignore_filenames, &ignore_regexes,
                             &ignore_deep_names, &ignore_deep_extensions, &ignore_deep_filenames, &ignore_deep_regexes,
-                            &included_types_set, enable_minimization, minimization_threshold, minimization_depth_threshold, &mut current_total_size, abort_handle.as_ref(), &parse_cache, comp_index);
+                            &included_types_set, abort_handle.as_ref(), &parse_cache, comp_index);
                     }
                 }
             }
         } else {
-            process_file(path, 0, max_depth, &mut visited, &mut result_blocks, &mut parsed_paths, &base_path, 
+            process_file(path, 0, max_depth, &mut visited, &mut result_blocks, &base_path, 
                 &ignore_names, &ignore_extensions, &ignore_filenames, &ignore_regexes,
                 &ignore_deep_names, &ignore_deep_extensions, &ignore_deep_filenames, &ignore_deep_regexes,
-                &included_types_set, enable_minimization, minimization_threshold, minimization_depth_threshold, &mut current_total_size, abort_handle.as_ref(), &parse_cache, comp_index);
+                &included_types_set, abort_handle.as_ref(), &parse_cache, comp_index);
         }
     }
 
-    Ok(result_blocks)
+    Ok(finalize_result(
+        result_blocks,
+        enable_minimization,
+        minimization_threshold,
+        minimization_depth_threshold,
+        &parse_cache,
+    ))
 }
 
 fn process_file(
@@ -127,8 +149,7 @@ fn process_file(
     current_depth: usize, 
     max_depth: usize, 
     visited: &mut HashSet<PathBuf>, 
-    result_blocks: &mut Vec<FileNode>,
-    parsed_paths: &mut Vec<String>,
+    result_blocks: &mut Vec<CollectedFile>,
     base_path: &Path,
     ignore_names: &HashSet<String>,
     ignore_extensions: &HashSet<String>,
@@ -139,10 +160,6 @@ fn process_file(
     ignore_deep_filenames: &HashSet<String>,
     ignore_deep_regexes: &[Regex],
     included_types: &HashSet<String>,
-    enable_minimization: bool,
-    minimization_threshold: usize,
-    minimization_depth_threshold: usize,
-    current_total_size: &mut usize,
     abort_handle: Option<&Arc<AtomicBool>>,
     parse_cache: &crate::cache::FileCache,
     component_index: Option<&HashMap<String, PathBuf>>,
@@ -171,37 +188,38 @@ fn process_file(
 
     if let Some(t) = mtime {
         if let Some(entry) = parse_cache.get(&abs_path, t) {
-            parsed_paths.push(entry.display_path.clone());
-            *current_total_size += entry.content.len();
-            result_blocks.push(FileNode {
+            result_blocks.push(CollectedFile {
                 path: entry.display_path.clone(),
-                content: entry.content.clone(),
-                abs_path: abs_path.to_string_lossy().into_owned(),
+                raw_content: entry.raw_content.clone(),
+                minimized_content: entry.minimized_content.clone(),
+                abs_path: abs_path.clone(),
+                depth: current_depth,
+                ext: file_ext.clone(),
+                mtime: Some(t),
             });
 
             // 缓存命中时仍需追踪依赖
-            if let Ok(content) = fs::read_to_string(&abs_path) {
-                let ext = abs_path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                if !should_ignore(&abs_path, ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes) {
-                    let base_dir = abs_path.parent().unwrap_or(Path::new(""));
-                    for dep in extract_dependencies(&content, ext) {
-                        if let Some(resolved) = resolve_path(base_dir, &dep, ext, base_path) {
-                            process_file(&resolved, current_depth + 1, max_depth, visited, result_blocks, parsed_paths, base_path,
-                                ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
-                                ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes,
-                                included_types, enable_minimization, minimization_threshold, minimization_depth_threshold, current_total_size, abort_handle, parse_cache, component_index);
-                        }
+            let content = entry.raw_content;
+            let ext = abs_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            if !should_ignore(&abs_path, ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes) {
+                let base_dir = abs_path.parent().unwrap_or(Path::new(""));
+                for dep in extract_dependencies(&content, ext) {
+                    if let Some(resolved) = resolve_path(base_dir, &dep, ext, base_path) {
+                        process_file(&resolved, current_depth + 1, max_depth, visited, result_blocks, base_path,
+                            ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
+                            ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes,
+                            included_types, abort_handle, parse_cache, component_index);
                     }
-                    // Vue 组件自动引入：通过索引解析模板中未显式 import 的组件
-                    if ext == "vue" {
-                        if let Some(index) = component_index {
-                            for comp_name in extract_vue_component_tags(&content) {
-                                if let Some(comp_path) = index.get(&comp_name) {
-                                    process_file(comp_path, current_depth + 1, max_depth, visited, result_blocks, parsed_paths, base_path,
-                                        ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
-                                        ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes,
-                                        included_types, enable_minimization, minimization_threshold, minimization_depth_threshold, current_total_size, abort_handle, parse_cache, component_index);
-                                }
+                }
+                // Vue 组件自动引入：通过索引解析模板中未显式 import 的组件
+                if ext == "vue" {
+                    if let Some(index) = component_index {
+                        for comp_name in extract_vue_component_tags(&content) {
+                            if let Some(comp_path) = index.get(&comp_name) {
+                                process_file(comp_path, current_depth + 1, max_depth, visited, result_blocks, base_path,
+                                    ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
+                                    ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes,
+                                    included_types, abort_handle, parse_cache, component_index);
                             }
                         }
                     }
@@ -223,36 +241,19 @@ fn process_file(
             }
         }
 
-        parsed_paths.push(display_path_str.clone());
-
-        let mut final_content = content.clone();
-        if enable_minimization && (*current_total_size + content.len() > minimization_threshold) && current_depth >= minimization_depth_threshold {
-            // Only minimize for JS/TS/Rust/Go/Java/C++ etc. (bracket-based languages)
-            let ext = abs_path.extension().and_then(|e| e.to_str()).unwrap_or("");
-            match ext {
-                e if C_STYLE_COMMENT_EXTS.contains(&e) => {
-                    final_content = minimizer::minimize_code(&content);
-                }
-                _ => {}
-            }
-        }
-
-        let formatted_content = format!(
-            "========================================\n[FILE PATH]: {}\n(Dependency Layer: {})\n========================================\n[CONTENT START]\n{}\n[CONTENT END]",
-            display_path_str, current_depth, final_content
-        );
-
-        *current_total_size += formatted_content.len();
-
         // 写入缓存（仅当能获取到 mtime 时）
         if let Some(t) = mtime {
-            parse_cache.set(abs_path.clone(), t, display_path_str.clone(), formatted_content.clone());
+            parse_cache.set(abs_path.clone(), t, display_path_str.clone(), content.clone());
         }
 
-        result_blocks.push(FileNode {
+        result_blocks.push(CollectedFile {
             path: display_path_str.clone(),
-            content: formatted_content,
-            abs_path: abs_path.to_string_lossy().into_owned(),
+            raw_content: content.clone(),
+            minimized_content: None,
+            abs_path: abs_path.clone(),
+            depth: current_depth,
+            ext: file_ext.clone(),
+            mtime,
         });
         
         let ext = abs_path.extension().and_then(|e| e.to_str()).unwrap_or("");
@@ -261,10 +262,10 @@ fn process_file(
             let base_dir = abs_path.parent().unwrap_or(Path::new(""));
             for dep in extract_dependencies(&content, ext) {
                 if let Some(resolved) = resolve_path(base_dir, &dep, ext, base_path) {
-                    process_file(&resolved, current_depth + 1, max_depth, visited, result_blocks, parsed_paths, base_path, 
+                    process_file(&resolved, current_depth + 1, max_depth, visited, result_blocks, base_path, 
                         ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
                         ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes,
-                        included_types, enable_minimization, minimization_threshold, minimization_depth_threshold, current_total_size, abort_handle, parse_cache, component_index);
+                        included_types, abort_handle, parse_cache, component_index);
                 }
             }
             // Vue 组件自动引入：通过索引解析模板中未显式 import 的组件
@@ -272,14 +273,63 @@ fn process_file(
                 if let Some(index) = component_index {
                     for comp_name in extract_vue_component_tags(&content) {
                         if let Some(comp_path) = index.get(&comp_name) {
-                            process_file(comp_path, current_depth + 1, max_depth, visited, result_blocks, parsed_paths, base_path,
+                            process_file(comp_path, current_depth + 1, max_depth, visited, result_blocks, base_path,
                                 ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
                                 ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes,
-                                included_types, enable_minimization, minimization_threshold, minimization_depth_threshold, current_total_size, abort_handle, parse_cache, component_index);
+                                included_types, abort_handle, parse_cache, component_index);
                         }
                     }
                 }
             }
         }
     }
+}
+
+fn format_file_content(path: &str, depth: usize, content: &str) -> String {
+    format!(
+        "========================================\n[FILE PATH]: {}\n(Dependency Layer: {})\n========================================\n[CONTENT START]\n{}\n[CONTENT END]",
+        path, depth, content
+    )
+}
+
+fn finalize_result(
+    result_blocks: Vec<CollectedFile>,
+    enable_minimization: bool,
+    minimization_threshold: usize,
+    minimization_depth_threshold: usize,
+    parse_cache: &crate::cache::FileCache,
+) -> Vec<FileNode> {
+    let total_unminimized_size: usize = result_blocks
+        .iter()
+        .map(|file| format_file_content(&file.path, file.depth, &file.raw_content).len())
+        .sum();
+    let should_minimize = enable_minimization && total_unminimized_size >= minimization_threshold;
+
+    result_blocks.into_iter().map(|mut file| {
+        let final_content = if should_minimize
+            && file.depth >= minimization_depth_threshold
+            && (C_STYLE_COMMENT_EXTS.contains(&file.ext.as_str()) || MIXED_STYLE_COMMENT_EXTS.contains(&file.ext.as_str()))
+        {
+            if let Some(cached) = file.minimized_content.take() {
+                cached
+            } else {
+                let minimized = match file.ext.as_str() {
+                    ext if MIXED_STYLE_COMMENT_EXTS.contains(&ext) => minimizer::minimize_mixed_code(&file.raw_content),
+                    _ => minimizer::minimize_code(&file.raw_content),
+                };
+                if let Some(mtime) = file.mtime {
+                    parse_cache.set_minimized(&file.abs_path, mtime, minimized.clone());
+                }
+                minimized
+            }
+        } else {
+            file.raw_content
+        };
+
+        FileNode {
+            path: file.path.clone(),
+            content: format_file_content(&file.path, file.depth, &final_content),
+            abs_path: file.abs_path.to_string_lossy().into_owned(),
+        }
+    }).collect()
 }

@@ -1,3 +1,5 @@
+// 依赖提取模块：从不同编程语言的文件内容中解析并提取依赖项
+
 use regex::Regex;
 use rustpython_parser::{ast as py_ast, Parse};
 use std::collections::HashSet;
