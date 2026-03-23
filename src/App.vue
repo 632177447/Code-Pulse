@@ -59,7 +59,7 @@ const appConfig = reactive({
   projectRoots: "",
   enableMinimization: true,
   minimizationThreshold: 8000,
-  minimizationDepthThreshold: 2,
+  minimizationDepthThreshold: 1,
 });
 
 watch(appConfig, (newVal) => {
