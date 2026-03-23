@@ -107,7 +107,7 @@ const settingsGroups: SettingGroup[] = [
         id: 'minimizationDepthThreshold',
         type: 'slider',
         label: '压缩触发层级',
-        description: '只有大于等于该层级的依赖文件才会被压缩。默认为 2。',
+        description: '只有大于等于该层级的依赖文件才会被压缩。默认为 1。',
         min: 0,
         max: 5,
         visible: (settings: any) => settings.enableMinimization === true
