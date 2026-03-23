@@ -39,9 +39,7 @@
     "macOS": {
       "entitlements": null,
       "exceptionDomain": "",
-      "frameworks": [],
-      "providerBundleIdentifier": null,
-      "signingConfig": null
+      "frameworks": []
     },
     "linux": {
       "deb": {
@@ -51,9 +49,6 @@
           "libgtk-3-0",
           "libsoup-3.0-0"
         ]
-      },
-      "appImage": {
-        "bundleMediaFramework": false
       }
     }
   }
