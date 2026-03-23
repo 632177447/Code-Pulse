@@ -17,6 +17,49 @@ pub fn kebab_to_pascal(s: &str) -> String {
         .collect()
 }
 
+fn strip_import_alias(part: &str) -> String {
+    part.trim()
+        .split_once(" as ")
+        .map(|(name, _)| name.trim())
+        .unwrap_or_else(|| part.trim())
+        .trim_matches(|c| c == '(' || c == ')')
+        .to_string()
+}
+
+fn normalize_python_module(module: &str) -> String {
+    let module = module.trim();
+    if module.is_empty() {
+        return String::new();
+    }
+
+    if module.starts_with('.') {
+        let count = module.chars().take_while(|&c| c == '.').count();
+        let prefix = if count == 1 { "./".to_string() } else { "../".repeat(count - 1) };
+        let remainder = module[count..].trim().trim_matches('.');
+        if remainder.is_empty() {
+            prefix
+        } else {
+            format!("{}{}", prefix, remainder.replace('.', "/"))
+        }
+    } else {
+        module.replace('.', "/")
+    }
+}
+
+fn join_dependency_path(base: &str, child: &str) -> String {
+    let child = child.trim().trim_matches(|c| c == '(' || c == ')').replace('.', "/");
+    if child.is_empty() {
+        return base.to_string();
+    }
+    if base.is_empty() {
+        return child;
+    }
+    if base.ends_with('/') {
+        return format!("{}{}", base, child);
+    }
+    format!("{}/{}", base, child)
+}
+
 pub fn extract_dependencies(content: &str, ext: &str) -> Vec<String> {
     let mut deps = Vec::new();
     let content_stripped = strip_comments(content, ext);
@@ -31,18 +74,37 @@ pub fn extract_dependencies(content: &str, ext: &str) -> Vec<String> {
             }
         }
         "py" => {
-            let re = get_py_re();
-            for cap in re.captures_iter(&content_lf) {
+            let import_re = get_py_import_re();
+            let from_re = get_py_from_re();
+
+            for cap in import_re.captures_iter(&content_lf) {
                 if let Some(m) = cap.get(1) {
-                    let mut s = m.as_str().to_string();
-                    if s.starts_with(".") {
-                        let count = s.chars().take_while(|&c| c == '.').count();
-                        let prefix = if count == 1 { "./".to_string() } else { "../".repeat(count - 1) };
-                        s = format!("{}{}", prefix, s[count..].replace('.', "/"));
-                    } else {
-                        s = s.replace('.', "/");
+                    for part in m.as_str().split(',') {
+                        let name = strip_import_alias(part);
+                        if name.is_empty() {
+                            continue;
+                        }
+                        deps.push(normalize_python_module(&name));
                     }
-                    deps.push(s);
+                }
+            }
+
+            for cap in from_re.captures_iter(&content_lf) {
+                let base = cap.get(1).map(|m| m.as_str()).unwrap_or("");
+                let imports = cap.get(2).map(|m| m.as_str()).unwrap_or("");
+                let normalized_base = normalize_python_module(base);
+                let pure_relative = base.chars().all(|c| c == '.');
+
+                if !normalized_base.is_empty() && !pure_relative {
+                    deps.push(normalized_base.clone());
+                }
+
+                for part in imports.split(',') {
+                    let name = strip_import_alias(part);
+                    if name.is_empty() || name == "*" {
+                        continue;
+                    }
+                    deps.push(join_dependency_path(&normalized_base, &name));
                 }
             }
         }
@@ -209,6 +271,85 @@ const lazyModule = import('./lazy');
                 "./module.factory".to_string(),
                 "./config".to_string(),
                 "./lazy".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn extract_dependencies_should_support_common_python_patterns() {
+        let content = r#"
+import os, app.config as config
+from . import utils
+from ..services import dingtalk_service, helpers as helper_alias
+"#;
+
+        let deps = extract_dependencies(content, "py");
+
+        assert_eq!(
+            deps,
+            vec![
+                "os".to_string(),
+                "app/config".to_string(),
+                "./utils".to_string(),
+                "../services".to_string(),
+                "../services/dingtalk_service".to_string(),
+                "../services/helpers".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn extract_dependencies_should_support_common_go_patterns() {
+        let content = r#"
+import alias "internal/pkg"
+import (
+    _ "side/effect"
+    log "app/logger"
+    "fmt"
+)
+"#;
+
+        let deps = extract_dependencies(content, "go");
+
+        assert_eq!(
+            deps,
+            vec![
+                "internal/pkg".to_string(),
+                "side/effect".to_string(),
+                "app/logger".to_string(),
+                "fmt".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn extract_dependencies_should_support_common_rust_and_php_patterns() {
+        let rust_content = r#"
+pub mod parser;
+pub(crate) mod lexer;
+use crate::analyzer::resolve;
+"#;
+        let php_content = r#"
+require_once('./bootstrap.php');
+include_once "./helpers.php";
+use App\Services\DingTalk as DingTalkService;
+"#;
+
+        assert_eq!(
+            extract_dependencies(rust_content, "rs"),
+            vec![
+                "parser".to_string(),
+                "lexer".to_string(),
+                "crate/analyzer/resolve".to_string(),
+            ]
+        );
+
+        assert_eq!(
+            extract_dependencies(php_content, "php"),
+            vec![
+                "./bootstrap.php".to_string(),
+                "./helpers.php".to_string(),
+                "App/Services/DingTalk".to_string(),
             ]
         );
     }
