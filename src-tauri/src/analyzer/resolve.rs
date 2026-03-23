@@ -2,6 +2,7 @@
 
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
+use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -9,7 +10,25 @@ use walkdir::WalkDir;
 use super::constants::*;
 use super::ignore::should_ignore;
 
+fn sanitize_import_path(import_path: &str) -> &str {
+    let trimmed = import_path.trim();
+    let end = trimmed.find(|c| c == '?' || c == '#').unwrap_or(trimmed.len());
+    &trimmed[..end]
+}
+
+fn append_extension(path: &Path, ext: &str) -> PathBuf {
+    let mut os = OsString::from(path.as_os_str());
+    os.push(".");
+    os.push(ext);
+    PathBuf::from(os)
+}
+
 pub fn resolve_path(base_dir: &Path, import_path: &str, ext: &str, project_root: &Path) -> Option<PathBuf> {
+    let import_path = sanitize_import_path(import_path);
+    if import_path.is_empty() {
+        return None;
+    }
+
     // 忽略网络路径
     if import_path.starts_with("http://") || import_path.starts_with("https://") || import_path.starts_with("//") {
         return None;
@@ -35,7 +54,21 @@ pub fn resolve_path(base_dir: &Path, import_path: &str, ext: &str, project_root:
         if t.exists() && t.is_file() {
             return Some(t.to_path_buf());
         }
+
+        let has_non_standard_suffix = t
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|suffix| !extensions.contains(&suffix))
+            .unwrap_or(false);
+
         for e in &extensions {
+            if has_non_standard_suffix {
+                let appended_ext = append_extension(t, e);
+                if appended_ext.exists() {
+                    return Some(appended_ext);
+                }
+            }
+
             let with_ext = t.with_extension(e);
             if with_ext.exists() {
                 return Some(with_ext);
@@ -71,6 +104,55 @@ pub fn resolve_path(base_dir: &Path, import_path: &str, ext: &str, project_root:
         } else {
             check_target(&project_root.join("src").join(import_path))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_path;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn create_test_root(prefix: &str) -> PathBuf {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("codepulse-{}-{}", prefix, stamp));
+        fs::create_dir_all(root.join("src").join("modules")).unwrap();
+        fs::write(root.join("package.json"), "{}").unwrap();
+        root
+    }
+
+    #[test]
+    fn resolve_path_should_prefer_appending_extension_for_dotted_ts_stem() {
+        let root = create_test_root("resolve-dotted");
+        let base_dir = root.join("src").join("modules");
+        let fallback = base_dir.join("dingtalk.ts");
+        let target = base_dir.join("dingtalk.controller.ts");
+        fs::write(&fallback, "export {};").unwrap();
+        fs::write(&target, "export {};").unwrap();
+
+        let resolved = resolve_path(&base_dir, "./dingtalk.controller", "ts", &root);
+
+        assert_eq!(resolved, Some(target.clone()));
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn resolve_path_should_strip_query_before_resolving_ts_file() {
+        let root = create_test_root("resolve-query");
+        let base_dir = root.join("src").join("modules");
+        let target = base_dir.join("lazy.service.ts");
+        fs::write(&target, "export {};").unwrap();
+
+        let resolved = resolve_path(&base_dir, "./lazy.service?raw", "ts", &root);
+
+        assert_eq!(resolved, Some(target.clone()));
+
+        let _ = fs::remove_dir_all(&root);
     }
 }
 

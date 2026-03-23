@@ -113,8 +113,8 @@ pub fn strip_comments(content: &str, ext: &str) -> String {
 
 pub fn get_js_re() -> &'static Regex {
     JS_RE.get_or_init(|| {
-        // 增加行首锚点支持静态 import，并优化动态 import 兼容性
-        Regex::new(r#"(?m)(?:^\s*(?:import|export).*from\s+['"]([^'"]+)['"]|require\s*\(\s*['"]([^'"]+)['"]\s*\)|import\s*\(?\s*['"]([^'"]+)['"]\s*\)?)"#).unwrap()
+        // 兼容多行 import/export、side-effect import、dynamic import 与 TS 的 import = require
+        Regex::new(r#"(?ms)(?:^\s*(?:import|export)\b(?:[\s\w{},*$]+?)\bfrom\s+['"]([^'"]+)['"]|^\s*import\s+['"]([^'"]+)['"]|require\s*\(\s*['"]([^'"]+)['"]\s*\)|import\s*\(\s*['"]([^'"]+)['"]\s*\)|^\s*import\s+[A-Za-z_$][\w$]*\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\))"#).unwrap()
     })
 }
 
