@@ -2,47 +2,43 @@
 
 ![CodePulse Preview](./docs/assets/pic1.png)
 
-**CodePulse (文脉)** 是一款专为大语言模型 (LLM) 设计的高效代码上下文生成工具。它能跨越 20+ 种编程语言，深度递归地解析文件内所有的 `import`、`require`、`use` 等依赖，将分散在项目各处的逻辑自动化地汇聚成一份层级分明、结构化的文本块。
+**CodePulse (文脉)** 是一个简单的代码上下文收集工具，旨在帮助开发者更方便地向大语言模型 (LLM) 提供项目代码背景。它支持 20 多种编程语言，可以自动解析文件中的 `import`、`require` 等依赖，并将相关的代码汇聚成一份结构化的文本，方便你粘贴到 AI 聊天窗口中。
 
-它是开发者向 AI 发送代码 Prompt 的最佳拍档，通过极简的交互提升 AI 对复杂工程的理解能力。
-
-[**立即下载最新版本**](https://github.com/632177447/Code-Pulse/releases) 🚀
+[**下载最新版本**](https://github.com/632177447/Code-Pulse/releases)
 
 ---
 
-## ✨ 核心特性
+## 主要功能
 
-- **🔍 深度依赖追踪 (Multi-language Support)**: 自动解析 10 余种主流编程语言（包括 TS/JS, Rust, Python, Go, Java, C++, Ruby, PHP 等，并增强了对 Vue 自动引入组件的深度支持）的依赖引用。
-- **🛡️ 智能过滤与忽略**: 内置 50+ 项过滤规则（如 `.git`, `node_modules`, `target`, `build`, `bin`, `obj` 等），并支持自定义 Glob 模式和后缀过滤。
-- **🚀 极速响应与任务控制**: **后台缓存技术** —— 内置后端文件级缓存层，支持秒级重复解析；同时解析过程支持随时手动中断，操作无负担。
-- **⚡ 上下文压缩 (Context Minimization)**: 支持自动移除函数/类成员实现而仅保留定义。该功能可大幅优化 LLM 上下文空间，将关键 Token 留给核心业务代码。
-- **🌳 结构化文件树**: 自动在输出框顶部生成清爽的 `FILE TREE`，使 AI 在接收代码前先掌握项目的整体文件拓扑。
-- **✍️ 实时预览与精修**: 结果生成后支持直接在输出框内进行二次编辑，并在边缘提供字数统计，确保 Prompt 完美符合预期。
-- **🎨 现代交互体验**: 基于 **Tauri 2.x + Vue 3 + Tailwind CSS 4.x** 构建，界面采用极简 Apple/Linear 风格，支持全局拖放、横向滚动管理和毛玻璃视觉效果。
-
----
-
-## 💡 为何选择 CodePulse？
-
-在 AI 开发时代，**上下文的完整性** 决定了 AI 回答的上限。
-
-当 **AI Agent 的使用额度受限** 或 **无法自动访问项目全貌** 时，CodePulse 为你提供了一种“平替”方案：通过精准解析代码间的“文脉”联系，它能将复杂的工程逻辑压缩并汇聚。即便在普通的 Chat 窗口（如 ChatGPT-5, Claude 4.5）中直接粘贴生成的结果，你也能让 AI 获得**接近 Agent 级别的全局感知力**，从而完成高难度的重构或代码审查任务。
+- **依赖解析**: 自动识别主流编程语言（TS/JS, Rust, Python, Go, Java, Vue 等）的引用关系，通过递归扫描把相关的代码找齐。
+- **文件过滤**: 预设了常用的过滤规则（如 `.git`, `node_modules`, `build` 等），也支持自己配置 Glob 模式和后缀名。
+- **性能与控制**: 带有简单的后端文件缓存，重复解析时速度较快，且支持随时中断解析过程。
+- **上下文优化**: 提供了一个选项，可以只保留函数或类的定义而移除具体实现，用来节省 Token 消耗。
+- **项目结构预览**: 在生成的文本顶部会自动附带一份文件树，让 AI 对项目结构有个直观了解。
+- **编辑与统计**: 生成的结果可以直接在框内修改，并实时显示字数，方便二次调整。
+- **界面设计**: 基于 Tauri 2.x 和 Vue 3 开发，简洁够用，支持文件拖放操作。
 
 ---
 
-## 📥 下载与安装
+## 为什么写这个工具？
 
-您可以直接前往 [GitHub Releases](https://github.com/632177447/Code-Pulse/releases) 下载适用于 Windows、macOS 或 Linux 的最新预编译程序。
+在用 ChatGPT 或 Claude 处理复杂一点的代码任务时，往往需要手动把好几个关联文件的内容粘贴过去，非常麻烦。
+
+CodePulse 就是为了解决这个“体力活”。它通过解析代码间的引用关系，把相关的逻辑块自动找出来并整合好。这样即使不使用复杂的 AI Agent，在普通的对话框里也能让 AI 更有针对性地理解你的项目逻辑。
 
 ---
 
-## 🏗️ 快速开始
+## 安装说明
 
-### 开发环境配置
+你可以直接从 [GitHub Releases](https://github.com/632177447/Code-Pulse/releases) 下载适合你系统的安装包（支持 Windows、macOS 和 Linux）。
 
-确保系统中已安装 [Rust](https://www.rust-lang.org/) (rustc 1.77+) 环境。
+---
 
-1. **克隆项目**:
+## 本地开发
+
+如果你想在本地运行或参与开发，需要先安装 [Rust](https://www.rust-lang.org/) 环境。
+
+1. **获取代码**:
    ```bash
    git clone https://github.com/your-repo/CodePulse.git
    cd CodePulse
@@ -53,12 +49,12 @@
    npm install
    ```
 
-3. **启动开发服务器**:
+3. **运行开发版本**:
    ```bash
    npm run tauri dev
    ```
 
-### 构建正式版本
+### 打包构建
 
 ```bash
 npm run tauri build
@@ -66,12 +62,12 @@ npm run tauri build
 
 ---
 
-## 📖 使用指南
+## 使用步骤
 
-1. **核心配置**: 在“设置 (Settings)”中配置递归深度、包含的文件类型或指定自定义的项目根路径。
+1. **基础设置**: 在设置页面配置好递归深度、过滤规则或项目根目录。
    
    <details>
-   <summary>📸 点击查看设置页预览 (Settings Previews)</summary>
+   <summary>📸 点击查看界面截图</summary>
    <br />
    <p align="center">
      <img src="./docs/assets/pic2.png" width="45%" />
@@ -79,28 +75,28 @@ npm run tauri build
    </p>
    </details>
 
-2. **导入代码**: 将特定的代码文件、目录或整个功能模块拖入顶部的“解析区”。
-3. **附加需求**: 在右侧的“附加提示词”框内输入你的针对性指令（如“请基于这些文件进行代码审查”）。
-4. **即刻解析**: 点击中央的“生成完整上下文”，CodePulse 会开始深度扫描依赖并压缩逻辑体。
-5. **一键就绪**: 点击“复制”，将整理好的上下文直接粘贴到 ChatGPT / Claude / DeepSeek。
+2. **添加代码**: 把想解析的文件或文件夹拖进去。
+3. **补充需求**: 如果有特定的指令，写在附加提示词框里。
+4. **生成内容**: 点击生成按钮，等待解析完成。
+5. **复制粘贴**: 一键复制结果，发给你的 AI 助理即可。
 
 ---
 
-## 🛠️ 技术底座
+## 技术实现
 
-- **前端框架**: [Vue 3](https://vuejs.org/) (Composition API)
-- **桌面引擎**: [Tauri 2.0](https://tauri.app/) (Rust 驱动，极小体积与极致安全)
-- **样式系统**: [Tailwind CSS 4.x](https://tailwindcss.com/)
-- **解析内核**: 基于 Rust 的 Regex 驱动的高性能依赖嗅探器，支持细粒度缓存层。
-
----
-
-## 🤝 贡献与反馈
-
-如果你有任何建议、发现 Bug 或想贡献代码，欢迎提交 Issue 或 Pull Request！我们期待你的声音！
+- **前端**: Vue 3 (Composition API)
+- **桌面端**: Tauri 2.0 (Rust 驱动)
+- **样式**: Tailwind CSS
+- **解析逻辑**: 基于正则匹配的依赖提取，配合 Rust 实现的高效扫描。
 
 ---
 
-## 📄 开源协议
+## 维护与反馈
+
+如果有 bug 或者新建议，欢迎提 Issue 或 PR，感谢支持。
+
+---
+
+## 开源协议
 
 MIT License | Copyright (c) 2024 CodePulse Team
