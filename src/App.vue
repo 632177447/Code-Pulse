@@ -22,7 +22,8 @@ const isSettingsOpen = ref(false);
 const userPrompt = ref("");
 const isEditing = ref(false);
 const outputAreaRef = ref<HTMLTextAreaElement | null>(null);
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let removeFileDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let analysisDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Worker 实例：字符串拼接全部在独立线程执行，主线程不卡
 const contextWorker = new ContextWorker();
@@ -46,7 +47,6 @@ const totalCharacters = computed(() => {
   return outputContext.value ? outputContext.value.length : 0;
 });
 
-
 const appConfig = reactive({
   maxDepth: 2,
   includedTypes: ["vue", "ts", "tsx", "js", "py", "json", "css", "scss"],
@@ -66,10 +66,31 @@ watch(appConfig, (newVal) => {
   localStorage.setItem("appConfig", JSON.stringify(newVal));
 }, { deep: true });
 
+const finalIncludedTypes = computed(() => {
+  const customIncludedTypes = appConfig.customIncludedTypes
+    .split(/[,\n]/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .map(s => s.startsWith('.') ? s.substring(1) : s);
+  return Array.from(new Set([...appConfig.includedTypes, ...customIncludedTypes]));
+});
+
 // 影响解析核心逻辑的配置项（排除 UI 逻辑项）
 const analysisSettingsTrigger = computed(() => {
-  const { autoGenerate, customPrompt, generateTree, ...analysisBase } = appConfig;
-  return JSON.stringify(analysisBase);
+  return JSON.stringify({
+    maxDepth: appConfig.maxDepth,
+    includedTypes: [...appConfig.includedTypes].sort(),
+    customIncludedTypes: finalIncludedTypes.value.filter(type => !appConfig.includedTypes.includes(type)),
+    ignoreExts: appConfig.ignoreExts,
+    ignoreDeepParse: appConfig.ignoreDeepParse,
+    projectRoots: appConfig.projectRoots
+      .split(/[,\n\r]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0),
+    enableMinimization: appConfig.enableMinimization,
+    minimizationThreshold: appConfig.minimizationThreshold,
+    minimizationDepthThreshold: appConfig.minimizationDepthThreshold,
+  });
 });
 
 // 影响前端最终拼接结果的配置项
@@ -80,17 +101,28 @@ const uiFormattingTrigger = computed(() => {
   });
 });
 
-// 当解析参数改变时，清理后端缓存任务
-watch(analysisSettingsTrigger, async () => {
-    try {
-      await invoke("clear_cache");
-      // 如果开启了自动解析且当前已有文件，则重新触发解析
-      if (appConfig.autoGenerate && filesList.value.length > 0) {
-        processPaths(filesList.value.map(f => f.path));
-      }
-    } catch (e) {
-      console.error("Failed to clear cache:", e);
-    }
+function scheduleProcessPaths(delay = 0, reason: 'analysis' | 'remove' = 'analysis') {
+  const timer = reason === 'analysis' ? analysisDebounceTimer : removeFileDebounceTimer;
+  if (timer) {
+    clearTimeout(timer);
+  }
+
+  const nextTimer = setTimeout(() => {
+    processPaths(filesList.value.map(f => f.path));
+  }, delay);
+
+  if (reason === 'analysis') {
+    analysisDebounceTimer = nextTimer;
+    return;
+  }
+  removeFileDebounceTimer = nextTimer;
+}
+
+// 当解析参数改变时，防抖后重新触发解析
+watch(analysisSettingsTrigger, () => {
+  if (appConfig.autoGenerate && filesList.value.length > 0) {
+    scheduleProcessPaths(300);
+  }
 });
 
 // 当格式化参数改变时，仅重新生成输出文本
@@ -200,28 +232,35 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  if (removeFileDebounceTimer) {
+    clearTimeout(removeFileDebounceTimer);
+  }
+  if (analysisDebounceTimer) {
+    clearTimeout(analysisDebounceTimer);
+  }
   if (unlistenDragDrop) unlistenDragDrop();
 });
 
 async function processPaths(paths: string[]) {
   if (paths.length === 0) return;
+  if (removeFileDebounceTimer) {
+    clearTimeout(removeFileDebounceTimer);
+    removeFileDebounceTimer = null;
+  }
+  if (analysisDebounceTimer) {
+    clearTimeout(analysisDebounceTimer);
+    analysisDebounceTimer = null;
+  }
   const requestId = ++currentRequestId.value;
   isLoading.value = true;
   try {
-    const customTypesArray = appConfig.customIncludedTypes
-      .split(/[,\n]/)
-      .map(s => s.trim())
-      .filter(s => s.length > 0)
-      .map(s => s.startsWith('.') ? s.substring(1) : s);
-    const finalIncludedTypes = Array.from(new Set([...appConfig.includedTypes, ...customTypesArray]));
-
     const result = await invoke<Array<{path: string, content: string, abs_path: string}>>("generate_context", {
       paths: paths,
       maxDepth: appConfig.maxDepth,
       generateTree: appConfig.generateTree,
       ignoreExts: appConfig.ignoreExts,
       ignoreDeepParse: appConfig.ignoreDeepParse,
-      includedTypes: finalIncludedTypes,
+      includedTypes: finalIncludedTypes.value,
       projectRoots: appConfig.projectRoots,
       enableMinimization: appConfig.enableMinimization,
       minimizationThreshold: appConfig.minimizationThreshold,
@@ -358,19 +397,13 @@ function removeFile(index: number) {
     filesList.value.splice(index, 1);
     if (!appConfig.autoGenerate) return;
 
-    if (debounceTimer) {
-        clearTimeout(debounceTimer);
-    }
-
     if (filesList.value.length === 0) {
         fileNodes.value = [];
         updateOutputContext();
         return;
     }
 
-    debounceTimer = setTimeout(() => {
-        processPaths(filesList.value.map((f: {path: string}) => f.path));
-    }, 400);
+    scheduleProcessPaths(300, 'remove');
 }
 
 const fileListContainer = ref<HTMLElement | null>(null);

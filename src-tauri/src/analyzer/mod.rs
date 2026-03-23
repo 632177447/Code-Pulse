@@ -188,8 +188,9 @@ fn process_file(
 
     if let Some(t) = mtime {
         if let Some(entry) = parse_cache.get(&abs_path, t) {
+            let display_path_str = build_display_path(&abs_path, base_path);
             result_blocks.push(CollectedFile {
-                path: entry.display_path.clone(),
+                path: display_path_str,
                 raw_content: entry.raw_content.clone(),
                 minimized_content: entry.minimized_content.clone(),
                 abs_path: abs_path.clone(),
@@ -230,20 +231,11 @@ fn process_file(
     }
 
     if let Ok(content) = fs::read_to_string(&abs_path) {
-        let mut display_path_str = abs_path.to_string_lossy().into_owned();
-        if let Ok(rel_path) = abs_path.strip_prefix(base_path) {
-            display_path_str = rel_path.to_string_lossy().replace("\\", "/");
-        } else {
-            display_path_str = display_path_str.replace("\\", "/");
-            // Also try to strip UNC prefix if present
-            if display_path_str.starts_with("//?/") {
-                display_path_str = display_path_str[4..].to_string();
-            }
-        }
+        let display_path_str = build_display_path(&abs_path, base_path);
 
         // 写入缓存（仅当能获取到 mtime 时）
         if let Some(t) = mtime {
-            parse_cache.set(abs_path.clone(), t, display_path_str.clone(), content.clone());
+            parse_cache.set(abs_path.clone(), t, content.clone());
         }
 
         result_blocks.push(CollectedFile {
@@ -283,6 +275,19 @@ fn process_file(
             }
         }
     }
+}
+
+fn build_display_path(abs_path: &Path, base_path: &Path) -> String {
+    let mut display_path_str = abs_path.to_string_lossy().into_owned();
+    if let Ok(rel_path) = abs_path.strip_prefix(base_path) {
+        display_path_str = rel_path.to_string_lossy().replace("\\", "/");
+    } else {
+        display_path_str = display_path_str.replace("\\", "/");
+        if display_path_str.starts_with("//?/") {
+            display_path_str = display_path_str[4..].to_string();
+        }
+    }
+    display_path_str
 }
 
 fn format_file_content(path: &str, depth: usize, content: &str) -> String {

@@ -3,11 +3,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::SystemTime;
 
-/// 缓存条目，包含展示路径、原始内容以及可选的压缩结果
+/// 缓存条目，包含原始内容以及可选的压缩结果
 #[derive(Debug, Clone)]
 pub struct CacheEntry {
-    /// 文件的展示名称（通常相对于项目根目录并处理过分隔符）
-    pub display_path: String,
     /// 原始文件内容，用于依赖提取和未压缩输出
     pub raw_content: String,
     /// 已缓存的压缩结果，按需生成，避免重复压缩同一文件
@@ -44,11 +42,10 @@ impl FileCache {
     /// # 参数
     /// * `abs_path` - 绝对路径
     /// * `mtime` - 文件的系统修改时间
-    /// * `display_path` - 格式化后的展示路径
     /// * `raw_content` - 原始文件内容
-    pub fn set(&self, abs_path: PathBuf, mtime: SystemTime, display_path: String, raw_content: String) {
+    pub fn set(&self, abs_path: PathBuf, mtime: SystemTime, raw_content: String) {
         if let Ok(mut data) = self.data.lock() {
-            data.insert((abs_path, mtime), CacheEntry { display_path, raw_content, minimized_content: None });
+            data.insert((abs_path, mtime), CacheEntry { raw_content, minimized_content: None });
         }
     }
 
