@@ -73,6 +73,32 @@ pub fn analyze_dependencies(
     let (ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes) = 
         parse_ignore_patterns(&ignore_deep_parse, &[]);
 
+    // 预收集所有“根”文件路径，用于在处理依赖时判断其是否属于用户直接选中的文件集（如果是则深度设为 0）
+    let mut all_root_files: HashSet<PathBuf> = HashSet::new();
+    for p_str in &paths {
+        let p = Path::new(p_str);
+        if !p.exists() { continue; }
+        if p.is_dir() {
+            for entry in WalkDir::new(p).into_iter().filter_map(|e| e.ok()) {
+                let e_path = entry.path();
+                if e_path.is_file() {
+                    let ext = e_path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+                    if included_types_set.contains(&ext) {
+                        if !should_ignore(e_path, &ignore_names, &ignore_extensions, &ignore_filenames, &ignore_regexes) {
+                            if let Ok(abs) = e_path.canonicalize() {
+                                all_root_files.insert(abs);
+                            }
+                        }
+                    }
+                }
+            }
+        } else if p.is_file() {
+            if let Ok(abs) = p.canonicalize() {
+                all_root_files.insert(abs);
+            }
+        }
+    }
+
     // 每个 project_root 对应的组件索引（懒初始化，避免重复扫描同一根目录）
     let mut component_indices: HashMap<PathBuf, Option<HashMap<String, PathBuf>>> = HashMap::new();
 
@@ -120,10 +146,11 @@ pub fn analyze_dependencies(
                         if should_ignore(e_path, &ignore_names, &ignore_extensions, &ignore_filenames, &ignore_regexes) {
                             continue;
                         }
-                        process_file(e_path, 1, max_depth, &mut visited, &mut result_blocks, &base_path, 
+                        // 初始深度统一设为 0
+                        process_file(e_path, 0, max_depth, &mut visited, &mut result_blocks, &base_path, 
                             &ignore_names, &ignore_extensions, &ignore_filenames, &ignore_regexes,
                             &ignore_deep_names, &ignore_deep_extensions, &ignore_deep_filenames, &ignore_deep_regexes,
-                            &included_types_set, abort_handle.as_ref(), &parse_cache, comp_index);
+                            &included_types_set, abort_handle.as_ref(), &parse_cache, comp_index, &all_root_files);
                     }
                 }
             }
@@ -131,7 +158,7 @@ pub fn analyze_dependencies(
             process_file(path, 0, max_depth, &mut visited, &mut result_blocks, &base_path, 
                 &ignore_names, &ignore_extensions, &ignore_filenames, &ignore_regexes,
                 &ignore_deep_names, &ignore_deep_extensions, &ignore_deep_filenames, &ignore_deep_regexes,
-                &included_types_set, abort_handle.as_ref(), &parse_cache, comp_index);
+                &included_types_set, abort_handle.as_ref(), &parse_cache, comp_index, &all_root_files);
         }
     }
 
@@ -163,6 +190,7 @@ fn process_file(
     abort_handle: Option<&Arc<AtomicBool>>,
     parse_cache: &crate::cache::FileCache,
     component_index: Option<&HashMap<String, PathBuf>>,
+    all_root_files: &HashSet<PathBuf>,
 ) {
     if let Some(h) = abort_handle {
         if h.load(Ordering::SeqCst) { return; }
@@ -206,10 +234,12 @@ fn process_file(
                 let base_dir = abs_path.parent().unwrap_or(Path::new(""));
                 for dep in extract_dependencies(&content, ext) {
                     if let Some(resolved) = resolve_path(base_dir, &dep, ext, base_path) {
-                        process_file(&resolved, current_depth + 1, max_depth, visited, result_blocks, base_path,
+                        // 如果依赖项属于根文件集，深度保持为 0，否则才 +1
+                        let next_depth = if all_root_files.contains(&resolved) { 0 } else { current_depth + 1 };
+                        process_file(&resolved, next_depth, max_depth, visited, result_blocks, base_path,
                             ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
                             ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes,
-                            included_types, abort_handle, parse_cache, component_index);
+                            included_types, abort_handle, parse_cache, component_index, all_root_files);
                     }
                 }
                 // Vue 组件自动引入：通过索引解析模板中未显式 import 的组件
@@ -217,10 +247,11 @@ fn process_file(
                     if let Some(index) = component_index {
                         for comp_name in extract_vue_component_tags(&content) {
                             if let Some(comp_path) = index.get(&comp_name) {
-                                process_file(comp_path, current_depth + 1, max_depth, visited, result_blocks, base_path,
+                                let next_depth = if all_root_files.contains(comp_path) { 0 } else { current_depth + 1 };
+                                process_file(comp_path, next_depth, max_depth, visited, result_blocks, base_path,
                                     ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
                                     ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes,
-                                    included_types, abort_handle, parse_cache, component_index);
+                                    included_types, abort_handle, parse_cache, component_index, all_root_files);
                             }
                         }
                     }
@@ -254,10 +285,11 @@ fn process_file(
             let base_dir = abs_path.parent().unwrap_or(Path::new(""));
             for dep in extract_dependencies(&content, ext) {
                 if let Some(resolved) = resolve_path(base_dir, &dep, ext, base_path) {
-                    process_file(&resolved, current_depth + 1, max_depth, visited, result_blocks, base_path, 
+                    let next_depth = if all_root_files.contains(&resolved) { 0 } else { current_depth + 1 };
+                    process_file(&resolved, next_depth, max_depth, visited, result_blocks, base_path, 
                         ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
                         ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes,
-                        included_types, abort_handle, parse_cache, component_index);
+                        included_types, abort_handle, parse_cache, component_index, all_root_files);
                 }
             }
             // Vue 组件自动引入：通过索引解析模板中未显式 import 的组件
@@ -265,10 +297,11 @@ fn process_file(
                 if let Some(index) = component_index {
                     for comp_name in extract_vue_component_tags(&content) {
                         if let Some(comp_path) = index.get(&comp_name) {
-                            process_file(comp_path, current_depth + 1, max_depth, visited, result_blocks, base_path,
+                            let next_depth = if all_root_files.contains(comp_path) { 0 } else { current_depth + 1 };
+                            process_file(comp_path, next_depth, max_depth, visited, result_blocks, base_path,
                                 ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
                                 ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes,
-                                included_types, abort_handle, parse_cache, component_index);
+                                included_types, abort_handle, parse_cache, component_index, all_root_files);
                         }
                     }
                 }
