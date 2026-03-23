@@ -1,14 +1,30 @@
 // 路径解析模块：处理跨语言的依赖路径转换与项目根目录识别
 
 use regex::Regex;
+use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 use walkdir::WalkDir;
 
 use super::constants::*;
 use super::ignore::should_ignore;
+use super::regex::strip_comments;
+
+static PATH_ALIAS_CACHE: OnceLock<Mutex<HashMap<PathBuf, Vec<PathAlias>>>> = OnceLock::new();
+
+#[derive(Clone, Debug)]
+struct PathAlias {
+    pattern: String,
+    base_dir: PathBuf,
+    targets: Vec<String>,
+}
+
+fn get_path_alias_cache() -> &'static Mutex<HashMap<PathBuf, Vec<PathAlias>>> {
+    PATH_ALIAS_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
 
 fn sanitize_import_path(import_path: &str) -> &str {
     let trimmed = import_path.trim();
@@ -21,6 +37,224 @@ fn append_extension(path: &Path, ext: &str) -> PathBuf {
     os.push(".");
     os.push(ext);
     PathBuf::from(os)
+}
+
+fn strip_json_trailing_commas(content: &str) -> String {
+    let mut result = String::with_capacity(content.len());
+    let mut chars = content.chars().peekable();
+    let mut in_string = false;
+    let mut escape = false;
+
+    while let Some(ch) = chars.next() {
+        if in_string {
+            result.push(ch);
+            if escape {
+                escape = false;
+            } else if ch == '\\' {
+                escape = true;
+            } else if ch == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match ch {
+            '"' => {
+                in_string = true;
+                result.push(ch);
+            }
+            ',' => {
+                let mut lookahead = chars.clone();
+                while let Some(next) = lookahead.next() {
+                    if next.is_whitespace() {
+                        continue;
+                    }
+                    if next == '}' || next == ']' {
+                        break;
+                    }
+                    result.push(ch);
+                    break;
+                }
+            }
+            _ => result.push(ch),
+        }
+    }
+
+    result
+}
+
+fn parse_jsonc(content: &str) -> Option<Value> {
+    let stripped = strip_comments(content, "ts");
+    let normalized = strip_json_trailing_commas(&stripped);
+    serde_json::from_str(&normalized).ok()
+}
+
+fn merge_json_values(base: Value, overlay: Value) -> Value {
+    match (base, overlay) {
+        (Value::Object(mut base_map), Value::Object(overlay_map)) => {
+            for (key, value) in overlay_map {
+                let merged = match base_map.remove(&key) {
+                    Some(base_value) => merge_json_values(base_value, value),
+                    None => value,
+                };
+                base_map.insert(key, merged);
+            }
+            Value::Object(base_map)
+        }
+        (_, overlay) => overlay,
+    }
+}
+
+fn resolve_extended_config_path(config_path: &Path, extends_value: &str) -> Option<PathBuf> {
+    if extends_value.is_empty() {
+        return None;
+    }
+
+    let config_dir = config_path.parent().unwrap_or(Path::new(""));
+    let raw_path = PathBuf::from(extends_value);
+    let candidate = if raw_path.is_absolute() {
+        raw_path
+    } else {
+        config_dir.join(raw_path)
+    };
+
+    if candidate.extension().is_some() {
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    } else {
+        let json_candidate = candidate.with_extension("json");
+        if json_candidate.exists() {
+            return Some(json_candidate);
+        }
+        let nested_candidate = candidate.join("tsconfig.json");
+        if nested_candidate.exists() {
+            return Some(nested_candidate);
+        }
+    }
+
+    None
+}
+
+fn load_config_value(config_path: &Path, visited: &mut HashSet<PathBuf>) -> Option<Value> {
+    let cache_key = config_path.canonicalize().unwrap_or_else(|_| config_path.to_path_buf());
+    if !visited.insert(cache_key) {
+        return None;
+    }
+
+    let content = fs::read_to_string(config_path).ok()?;
+    let current = parse_jsonc(&content)?;
+
+    let extends_value = current
+        .get("extends")
+        .and_then(|value| value.as_str())
+        .map(|value| value.to_string());
+
+    if let Some(extends_value) = extends_value {
+        if let Some(parent_path) = resolve_extended_config_path(config_path, &extends_value) {
+            if let Some(parent_value) = load_config_value(&parent_path, visited) {
+                return Some(merge_json_values(parent_value, current));
+            }
+        }
+    }
+
+    Some(current)
+}
+
+fn match_alias_pattern(pattern: &str, import_path: &str) -> Option<String> {
+    if let Some((prefix, suffix)) = pattern.split_once('*') {
+        if import_path.starts_with(prefix)
+            && import_path.ends_with(suffix)
+            && import_path.len() >= prefix.len() + suffix.len()
+        {
+            return Some(import_path[prefix.len()..import_path.len() - suffix.len()].to_string());
+        }
+        return None;
+    }
+
+    if import_path == pattern {
+        Some(String::new())
+    } else {
+        None
+    }
+}
+
+fn apply_alias_target_pattern(pattern: &str, matched: &str) -> String {
+    if let Some((prefix, suffix)) = pattern.split_once('*') {
+        format!("{}{}{}", prefix, matched, suffix)
+    } else {
+        pattern.to_string()
+    }
+}
+
+fn load_path_aliases(project_root: &Path) -> Vec<PathAlias> {
+    let cache_key = project_root.canonicalize().unwrap_or_else(|_| project_root.to_path_buf());
+
+    if let Ok(cache) = get_path_alias_cache().lock() {
+        if let Some(aliases) = cache.get(&cache_key) {
+            return aliases.clone();
+        }
+    }
+
+    let mut aliases = Vec::new();
+
+    for config_name in ["tsconfig.json", "jsconfig.json"] {
+        let config_path = project_root.join(config_name);
+        if !config_path.exists() {
+            continue;
+        }
+
+        let mut visited = HashSet::new();
+        let Some(config_value) = load_config_value(&config_path, &mut visited) else {
+            continue;
+        };
+
+        let compiler_options = config_value
+            .get("compilerOptions")
+            .and_then(|value| value.as_object());
+        let base_url = compiler_options
+            .and_then(|options| options.get("baseUrl"))
+            .and_then(|value| value.as_str())
+            .unwrap_or(".");
+        let base_dir = config_path
+            .parent()
+            .unwrap_or(Path::new(""))
+            .join(base_url);
+
+        let Some(paths) = compiler_options
+            .and_then(|options| options.get("paths"))
+            .and_then(|value| value.as_object())
+        else {
+            continue;
+        };
+
+        for (pattern, target_value) in paths {
+            let Some(targets) = target_value.as_array() else {
+                continue;
+            };
+
+            let resolved_targets: Vec<String> = targets
+                .iter()
+                .filter_map(|item| item.as_str().map(|value| value.to_string()))
+                .collect();
+
+            if resolved_targets.is_empty() {
+                continue;
+            }
+
+            aliases.push(PathAlias {
+                pattern: pattern.to_string(),
+                base_dir: base_dir.clone(),
+                targets: resolved_targets,
+            });
+        }
+    }
+
+    if let Ok(mut cache) = get_path_alias_cache().lock() {
+        cache.insert(cache_key, aliases.clone());
+    }
+
+    aliases
 }
 
 pub fn resolve_path(base_dir: &Path, import_path: &str, ext: &str, project_root: &Path) -> Option<PathBuf> {
@@ -100,6 +334,24 @@ pub fn resolve_path(base_dir: &Path, import_path: &str, ext: &str, project_root:
         None
     };
 
+    let resolve_from_aliases = || -> Option<PathBuf> {
+        for alias in load_path_aliases(project_root) {
+            let Some(matched) = match_alias_pattern(&alias.pattern, import_path) else {
+                continue;
+            };
+
+            for target_pattern in &alias.targets {
+                let candidate = alias
+                    .base_dir
+                    .join(apply_alias_target_pattern(target_pattern, &matched));
+                if let Some(resolved) = check_target(&candidate) {
+                    return Some(resolved);
+                }
+            }
+        }
+        None
+    };
+
     if import_path.starts_with("crate/") {
         check_target(&project_root.join("src").join(&import_path[6..]))
     } else if import_path.starts_with("@/") {
@@ -111,7 +363,9 @@ pub fn resolve_path(base_dir: &Path, import_path: &str, ext: &str, project_root:
     } else if import_path.starts_with(".") {
         check_target(&base_dir.join(import_path))
     } else {
-        if let Some(res) = check_target(&base_dir.join(import_path)) {
+        if let Some(res) = resolve_from_aliases() {
+            Some(res)
+        } else if let Some(res) = check_target(&base_dir.join(import_path)) {
             Some(res)
         } else if let Some(res) = check_target(&project_root.join(import_path)) {
             Some(res)
@@ -137,6 +391,10 @@ mod tests {
         fs::create_dir_all(root.join("src").join("modules")).unwrap();
         fs::write(root.join("package.json"), "{}").unwrap();
         root
+    }
+
+    fn write_tsconfig(root: &PathBuf, content: &str) {
+        fs::write(root.join("tsconfig.json"), content).unwrap();
     }
 
     #[test]
@@ -195,6 +453,37 @@ mod tests {
         fs::write(&target, "").unwrap();
 
         let resolved = resolve_path(&base_dir, "./parser", "rs", &root);
+
+        assert_eq!(resolved, Some(target.clone()));
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn resolve_path_should_support_tsconfig_path_alias_for_vue_imports() {
+        let root = create_test_root("resolve-tsconfig-alias");
+        let base_dir = root.join("src").join("pages");
+        fs::create_dir_all(&base_dir).unwrap();
+        fs::create_dir_all(root.join("src").join("renderer").join("stores")).unwrap();
+
+        write_tsconfig(
+            &root,
+            r#"
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@renderer/*": ["src/renderer/*"]
+    }
+  }
+}
+"#,
+        );
+
+        let target = root.join("src").join("renderer").join("stores").join("index.ts");
+        fs::write(&target, "export {};").unwrap();
+
+        let resolved = resolve_path(&base_dir, "@renderer/stores", "vue", &root);
 
         assert_eq!(resolved, Some(target.clone()));
 
