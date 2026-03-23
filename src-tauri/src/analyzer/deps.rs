@@ -25,7 +25,7 @@ pub fn extract_dependencies(content: &str, ext: &str) -> Vec<String> {
         e if JS_TS_FAMILY.contains(&e) => {
             let re = get_js_re();
             for cap in re.captures_iter(&content_lf) {
-                if let Some(m) = cap.get(1).or(cap.get(2)).or(cap.get(3)) {
+                if let Some(m) = cap.get(1).or(cap.get(2)).or(cap.get(3)).or(cap.get(4)).or(cap.get(5)) {
                     deps.push(m.as_str().to_string());
                 }
             }
@@ -177,4 +177,39 @@ pub fn extract_vue_component_tags(content: &str) -> Vec<String> {
         }
     }
     tags
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extract_dependencies;
+
+    #[test]
+    fn extract_dependencies_should_support_common_ts_patterns() {
+        let content = r#"
+import { Module } from '@nestjs/common';
+import {
+  DingTalkController,
+} from './dingtalk.controller';
+import type { DingTalkService } from "./dingtalk.service";
+import './bootstrap';
+export { createModule } from './module.factory';
+import Config = require('./config');
+const lazyModule = import('./lazy');
+"#;
+
+        let deps = extract_dependencies(content, "ts");
+
+        assert_eq!(
+            deps,
+            vec![
+                "@nestjs/common".to_string(),
+                "./dingtalk.controller".to_string(),
+                "./dingtalk.service".to_string(),
+                "./bootstrap".to_string(),
+                "./module.factory".to_string(),
+                "./config".to_string(),
+                "./lazy".to_string(),
+            ]
+        );
+    }
 }
