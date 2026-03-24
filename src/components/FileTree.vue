@@ -11,6 +11,7 @@ const emit = defineEmits<{
   (e: 'delete', fullPath: string, absPath: string, originIds?: string[]): void;
   (e: 'uploadFiles', files: string[], destDir: string): void;
   (e: 'updateDropTarget', target: string | null): void;
+  (e: 'select', fullPath: string): void;
 }>();
 
 const root = computed(() => {
@@ -64,6 +65,10 @@ function handleDelete(fullPath: string, absPath: string, originIds?: string[]) {
 function handleUploadFiles(files: string[], destDir: string) {
   emit('uploadFiles', files, destDir);
 }
+
+function handleSelect(fullPath: string) {
+  emit('select', fullPath);
+}
 </script>
 
 <template>
@@ -79,6 +84,7 @@ function handleUploadFiles(files: string[], destDir: string) {
       :key="node.fullPath"
       :node="node"
       @delete="handleDelete"
+      @select="handleSelect"
       @upload-files="handleUploadFiles"
       @update-drop-target="(target: string | null) => emit('updateDropTarget', target)"
     />
