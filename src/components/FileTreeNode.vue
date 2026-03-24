@@ -56,7 +56,10 @@ function bubbleDelete(fullPath: string, absPath: string, originIds?: string[]) {
               <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
             </template>
         </span>
-        <span class="truncate text-[13px] tracking-tight transition-colors" :class="node.isDirectory ? 'font-bold text-app-text italic' : 'text-app-text-dim font-medium group-hover:text-app-text'">{{ node.name }}</span>
+        <span
+          class="truncate text-[13px] tracking-tight transition-colors"
+          :class="node.isDirectory ? 'font-bold text-app-text italic pr-0.5' : 'text-app-text-dim font-medium group-hover:text-app-text'"
+        >{{ node.name }}</span>
       </div>
       <button 
         @click.stop="handleDelete"
