@@ -22,8 +22,14 @@ const isSettingsOpen = ref(false);
 const userPrompt = ref("");
 const isEditing = ref(false);
 const outputAreaRef = ref<HTMLTextAreaElement | null>(null);
+const sidebarWidth = ref(320);
+const isResizingSidebar = ref(false);
+let sidebarResizeStartX = 0;
+let sidebarResizeStartWidth = 0;
 let removeFileDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let analysisDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+const SIDEBAR_MIN_WIDTH = 260;
+const SIDEBAR_MAX_WIDTH = 520;
 
 // Worker 实例：字符串拼接全部在独立线程执行，主线程不卡
 const contextWorker = new ContextWorker();
@@ -149,6 +155,14 @@ onMounted(async () => {
     }
   }
 
+  const savedSidebarWidth = localStorage.getItem("sidebarWidth");
+  if (savedSidebarWidth) {
+    const parsedWidth = Number(savedSidebarWidth);
+    if (!Number.isNaN(parsedWidth)) {
+      sidebarWidth.value = Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, parsedWidth));
+    }
+  }
+
   unlistenDragDrop = await getCurrentWebview().onDragDropEvent((event: any) => {
     const { type, position, paths } = event.payload;
 
@@ -240,6 +254,7 @@ onUnmounted(() => {
   if (analysisDebounceTimer) {
     clearTimeout(analysisDebounceTimer);
   }
+  stopResizeSidebar();
   if (unlistenDragDrop) unlistenDragDrop();
 });
 
@@ -413,6 +428,30 @@ const fileListContainer = ref<HTMLElement | null>(null);
 function handleWheel(e: WheelEvent) {
     handleWheelHorizontal(e, fileListContainer.value);
 }
+
+function startResizeSidebar(e: MouseEvent) {
+  isResizingSidebar.value = true;
+  sidebarResizeStartX = e.clientX;
+  sidebarResizeStartWidth = sidebarWidth.value;
+  document.body.classList.add('sidebar-resizing');
+  window.addEventListener('mousemove', handleResizeSidebar);
+  window.addEventListener('mouseup', stopResizeSidebar);
+}
+
+function handleResizeSidebar(e: MouseEvent) {
+  if (!isResizingSidebar.value) return;
+  const nextWidth = Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, sidebarResizeStartWidth + e.clientX - sidebarResizeStartX));
+  sidebarWidth.value = nextWidth;
+}
+
+function stopResizeSidebar() {
+  if (!isResizingSidebar.value) return;
+  isResizingSidebar.value = false;
+  document.body.classList.remove('sidebar-resizing');
+  window.removeEventListener('mousemove', handleResizeSidebar);
+  window.removeEventListener('mouseup', stopResizeSidebar);
+  localStorage.setItem("sidebarWidth", String(sidebarWidth.value));
+}
 </script>
 
 <template>
@@ -522,14 +561,26 @@ function handleWheel(e: WheelEvent) {
     </div>
 
     <!-- Bottom: Results Area -->
-    <div class="w-full max-w-6xl flex-1 flex min-h-[420px] gap-6 mb-2">
+    <div class="w-full max-w-6xl flex-1 flex min-h-[420px] gap-5.5 mb-2">
       <!-- Left: Sidebar Tree -->
-      <DependencyTreeSidebar 
-        :fileNodes="fileNodes" 
-        class="w-80"
-        @delete="(fp, ap, ids) => handleNodeDelete(fp, ap, ids)" 
-        @upload-files="handleTreeUploadFiles"
-      />
+      <div class="h-full shrink-0" :style="{ width: `${sidebarWidth}px` }">
+        <DependencyTreeSidebar 
+          :fileNodes="fileNodes" 
+          class="w-full"
+          @delete="(fp, ap, ids) => handleNodeDelete(fp, ap, ids)" 
+          @upload-files="handleTreeUploadFiles"
+        />
+      </div>
+
+      <div
+        class="relative shrink-0 w-1.5 -mx-3 cursor-col-resize group"
+        @mousedown.prevent="startResizeSidebar"
+      >
+        <div
+          class="absolute inset-y-0 my-2 left-1/2 -translate-x-1/2 w-1 rounded-full bg-app-border/70 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+        ></div>
+          <!-- :class="isResizingSidebar ? 'bg-app-primary' : 'group-hover:bg-app-primary/80'" -->
+      </div>
 
       <!-- Right: Main Context Output -->
       <div class="flex-1 flex flex-col bg-app-surface border border-app-border rounded-3xl shadow-app-md relative overflow-hidden">
@@ -651,5 +702,10 @@ function handleWheel(e: WheelEvent) {
   background-color: rgba(244, 63, 94, 0.08) !important;
   box-shadow: 0 0 0 1px var(--color-app-rose) inset;
   border-radius: 12px;
+}
+
+body.sidebar-resizing {
+  cursor: col-resize;
+  user-select: none;
 }
 </style>
