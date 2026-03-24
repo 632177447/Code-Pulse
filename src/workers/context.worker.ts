@@ -1,7 +1,8 @@
 export interface WorkerInput {
   requestId?: number;
-  fileNodes: { path: string; content: string }[];
+  fileNodes: { path: string; content: string; isPrimary?: boolean }[];
   generateTree: boolean;
+  highlightPrimaryFiles?: boolean;
   customPrompt: string;
   userPrompt: string;
   longContextThreshold: number;
@@ -9,7 +10,7 @@ export interface WorkerInput {
 
 // 所有耗时的字符串拼接全部在 Worker 线程执行，主线程不受影响
 self.onmessage = (e: MessageEvent<WorkerInput>) => {
-  const { requestId, fileNodes, generateTree, customPrompt, userPrompt, longContextThreshold } = e.data;
+  const { requestId, fileNodes, generateTree, highlightPrimaryFiles, customPrompt, userPrompt, longContextThreshold } = e.data;
 
   if (fileNodes.length === 0) {
     self.postMessage({ requestId, content: '' });
@@ -48,7 +49,18 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
 
   const PENDING_USER_PROMPT = userPrompt.trim();
   // 使用数组 join 代替逐次 += 以减少中间字符串对象的生成
-  const blocksContent = fileNodes.map(n => n.content).join('\n\n');
+  const blocksContent = fileNodes.map(n => {
+    if (!highlightPrimaryFiles || !n.isPrimary) {
+      return n.content;
+    }
+    return [
+      '========================================',
+      '[PRIMARY FILE]',
+      'This file was directly selected by the user. Use it as the primary reference for this task.',
+      '========================================',
+      n.content
+    ].join('\n');
+  }).join('\n\n');
 
   if (PENDING_USER_PROMPT && blocksContent.length <= longContextThreshold) {
     finalContext += '========================================\n';

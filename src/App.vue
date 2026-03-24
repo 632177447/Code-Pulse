@@ -54,6 +54,7 @@ const appConfig = reactive({
   ignoreDeepParse: "package.json, tsconfig.json, vite.config.ts, tauri.conf.json, README.md, Cargo.toml, go.mod, pom.xml, .env, *.test.ts, *.spec.ts",
   customPrompt: "",
   generateTree: true,
+  highlightPrimaryFiles: true,
   autoGenerate: true,
   customIncludedTypes: "",
   projectRoots: "",
@@ -97,7 +98,8 @@ const analysisSettingsTrigger = computed(() => {
 const uiFormattingTrigger = computed(() => {
   return JSON.stringify({
     customPrompt: appConfig.customPrompt,
-    generateTree: appConfig.generateTree
+    generateTree: appConfig.generateTree,
+    highlightPrimaryFiles: appConfig.highlightPrimaryFiles
   });
 });
 
@@ -307,8 +309,9 @@ function updateOutputContext(requestId?: number) {
     // isLoading 的 false 由 worker.onmessage 回调负责关闭
     contextWorker.postMessage({
         requestId: rid,
-        fileNodes: fileNodes.value.map(n => ({ path: n.path, content: n.content })),
+        fileNodes: fileNodes.value.map(n => ({ path: n.path, content: n.content, isPrimary: Boolean(n.originId) })),
         generateTree: appConfig.generateTree,
+        highlightPrimaryFiles: appConfig.highlightPrimaryFiles,
         customPrompt: appConfig.customPrompt,
         userPrompt: userPrompt.value,
         longContextThreshold: appConfig.minimizationThreshold,

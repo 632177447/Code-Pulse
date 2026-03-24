@@ -148,6 +148,12 @@ const settingsGroups: SettingGroup[] = [
         description: '在输出结果的开头生成项目的层级目录树。'
       },
       {
+        id: 'highlightPrimaryFiles',
+        type: 'switch',
+        label: '重点文件提示',
+        description: '为你直接添加的主要文件插入额外关注标记，提醒 AI 优先理解这些文件。'
+      },
+      {
         id: 'customPrompt',
         type: 'textarea',
         label: '全局引导提示词 (Prompt)',
