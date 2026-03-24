@@ -22,12 +22,14 @@ const isSettingsOpen = ref(false);
 const userPrompt = ref("");
 const isEditing = ref(false);
 const outputAreaRef = ref<HTMLTextAreaElement | null>(null);
+const outputShadowMarkerRef = ref<HTMLSpanElement | null>(null);
 const sidebarWidth = ref(320);
 const isResizingSidebar = ref(false);
 let sidebarResizeStartX = 0;
 let sidebarResizeStartWidth = 0;
 let removeFileDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let analysisDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+const outputShadowState = ref<{ beforeText: string; afterText: string } | null>(null);
 const SIDEBAR_MIN_WIDTH = 260;
 const SIDEBAR_MAX_WIDTH = 520;
 
@@ -429,6 +431,55 @@ function handleWheel(e: WheelEvent) {
     handleWheelHorizontal(e, fileListContainer.value);
 }
 
+function clearOutputShadow() {
+  outputShadowState.value = null;
+}
+
+async function handleNodeSelect(fullPath: string) {
+  if (isLoading.value || !outputContext.value) return;
+
+  const anchor = `[FILE PATH]: ${fullPath}`;
+  const anchorIndex = outputContext.value.indexOf(anchor);
+  if (anchorIndex === -1) return;
+
+  outputShadowState.value = {
+    beforeText: outputContext.value.slice(0, anchorIndex),
+    afterText: outputContext.value.slice(anchorIndex),
+  };
+
+  await nextTick();
+  const outputArea = outputAreaRef.value;
+  const marker = outputShadowMarkerRef.value;
+  if (!outputArea || !marker) {
+    clearOutputShadow();
+    return;
+  }
+
+  const maxScrollTop = Math.max(outputArea.scrollHeight - outputArea.clientHeight, 0);
+  const targetScrollTop = Math.min(Math.max(marker.offsetTop, 0), maxScrollTop);
+
+  outputArea.scrollTo({
+    top: targetScrollTop,
+    behavior: 'smooth'
+  });
+
+  clearOutputShadow();
+
+  if (isEditing.value) {
+    requestAnimationFrame(() => {
+      outputArea.focus({ preventScroll: true });
+      outputArea.setSelectionRange(anchorIndex, anchorIndex);
+    });
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    if (!isEditing.value) {
+      outputArea.blur();
+    }
+  });
+}
+
 function startResizeSidebar(e: MouseEvent) {
   isResizingSidebar.value = true;
   sidebarResizeStartX = e.clientX;
@@ -568,6 +619,7 @@ function stopResizeSidebar() {
           :fileNodes="fileNodes" 
           class="w-full"
           @delete="(fp, ap, ids) => handleNodeDelete(fp, ap, ids)" 
+          @select="handleNodeSelect"
           @upload-files="handleTreeUploadFiles"
         />
       </div>
@@ -615,7 +667,14 @@ function stopResizeSidebar() {
             </button>
           </div>
         </div>
-        <div class="overflow-hidden w-full h-full flex-1 rounded-b-3xl py-2 px-2">
+        <div class="relative overflow-hidden w-full h-full flex-1 rounded-b-3xl py-2 px-2">
+          <div
+            v-if="outputShadowState"
+            class="absolute inset-0 pointer-events-none opacity-0 overflow-y-scroll overflow-x-hidden p-2 font-mono text-[13px] leading-relaxed z-[-1] shadow-output-text"
+            aria-hidden="true"
+          >
+            {{ outputShadowState.beforeText }}<span ref="outputShadowMarkerRef"></span>{{ outputShadowState.afterText }}
+          </div>
           <textarea 
             ref="outputAreaRef"
             :readonly="!isEditing"
@@ -707,5 +766,13 @@ function stopResizeSidebar() {
 body.sidebar-resizing {
   cursor: col-resize;
   user-select: none;
+}
+
+.shadow-output-text {
+  box-sizing: border-box;
+  tab-size: 4;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 </style>

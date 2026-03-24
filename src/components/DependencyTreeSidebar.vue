@@ -8,6 +8,7 @@ defineProps<{
 const emit = defineEmits<{
     (e: 'delete', fullPath: string, absPath: string, originIds?: string[]): void;
     (e: 'uploadFiles', files: string[], destDir: string): void;
+    (e: 'select', fullPath: string): void;
 }>();
 </script>
 
@@ -24,6 +25,7 @@ const emit = defineEmits<{
             <FileTree 
                 :nodes="fileNodes" 
                 @delete="(fp, ap, ids) => emit('delete', fp, ap, ids)" 
+                @select="(fullPath) => emit('select', fullPath)"
                 @upload-files="(fs, dd) => emit('uploadFiles', fs, dd)"
             />
         </div>

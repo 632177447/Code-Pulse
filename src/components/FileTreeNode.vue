@@ -17,14 +17,18 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'delete', fullPath: string, absPath: string, originIds?: string[]): void;
+  (e: 'select', fullPath: string): void;
 }>();
 
 const isExpandedLocal = ref(props.node.isExpanded);
 
-function toggle() {
+function handleNodeClick() {
   if (props.node.isDirectory) {
     isExpandedLocal.value = !isExpandedLocal.value;
+    return;
   }
+
+  emit('select', props.node.fullPath);
 }
 
 function handleDelete() {
@@ -34,6 +38,10 @@ function handleDelete() {
 function bubbleDelete(fullPath: string, absPath: string, originIds?: string[]) {
   emit('delete', fullPath, absPath, originIds);
 }
+
+function bubbleSelect(fullPath: string) {
+  emit('select', fullPath);
+}
 </script>
 
 <template>
@@ -42,9 +50,9 @@ function bubbleDelete(fullPath: string, absPath: string, originIds?: string[]) {
   >
     <div 
       class="flex items-center justify-between group py-1 px-2 rounded-xl hover:bg-app-surface-hover transition-all duration-300"
-      :class="node.isDirectory ? 'mb-0.5 cursor-pointer' : 'cursor-default'"
+      :class="node.isDirectory ? 'mb-0.5 cursor-pointer' : 'cursor-pointer'"
       :title="node.name"
-      @click="toggle"
+      @click="handleNodeClick"
     >
       <div class="flex items-center space-x-2.5 overflow-hidden">
         <span class="text-app-text-mute w-4 flex justify-center group-hover:text-app-primary transition-colors">
@@ -76,6 +84,7 @@ function bubbleDelete(fullPath: string, absPath: string, originIds?: string[]) {
         :key="child.fullPath"
         :node="child"
         @delete="bubbleDelete"
+        @select="bubbleSelect"
       />
     </div>
   </div>
