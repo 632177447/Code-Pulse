@@ -66,7 +66,7 @@ async function handleNodeSelect(fullPath: string) {
   }
 
   const maxScrollTop = Math.max(outputArea.scrollHeight - outputArea.clientHeight, 0);
-  const targetScrollTop = Math.min(Math.max(marker.offsetTop, 0), maxScrollTop);
+  const targetScrollTop = Math.min(Math.max(marker.offsetTop - 28, 0), maxScrollTop);
 
   outputArea.scrollTo({
     top: targetScrollTop,
