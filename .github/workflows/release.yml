@@ -45,6 +45,17 @@ jobs:
       - name: install frontend dependencies
         run: npm install
 
+      - name: extract changelog
+        id: changelog
+        shell: bash
+        run: |
+          # 提取第一个 ## [ 到底一个 --- 之间的内容，并去掉首尾匹配行
+          CONTENT=$(sed -n '/^## \[/,/^---/p' CHANGELOG.md | sed '1d;$d')
+          # 处理多行输出 (GitHub Actions 推荐方式)
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,7 +64,7 @@ jobs:
         with:
           tagName: v__VERSION__ # This replaces __VERSION__ with the version from tauri.conf.json
           releaseName: "CodePulse v__VERSION__"
-          releaseBody: "See the assets below for the latest version."
+          releaseBody: ${{ steps.changelog.outputs.body }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
