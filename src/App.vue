@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, reactive, computed, nextTick, watch } from "vue";
+import { ref, onMounted, onUnmounted, reactive, computed, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import AppSettingsModal from "./components/AppSettingsModal.vue";
-import DependencyTreeSidebar from "./components/DependencyTreeSidebar.vue";
+import AppLayoutGenerateControl from "./components/layout/AppLayoutGenerateControl.vue";
+import AppLayoutHeader from "./components/layout/AppLayoutHeader.vue";
+import AppLayoutInputSection from "./components/layout/AppLayoutInputSection.vue";
+import AppLayoutResultsSection from "./components/layout/AppLayoutResultsSection.vue";
+import AppLayoutVersionInfo from "./components/layout/AppLayoutVersionInfo.vue";
 import ContextWorker from "./workers/context.worker.ts?worker";
-import { normalizePath, isBinaryFile, copyToClipboard, handleWheelHorizontal } from "./utils";
+import { normalizePath, isBinaryFile, copyToClipboard } from "./utils";
 import pkg from "../package.json";
 
 const version = pkg.version;
@@ -21,15 +25,12 @@ const filesList = ref<{id: string, path: string}[]>([]);
 const isSettingsOpen = ref(false);
 const userPrompt = ref("");
 const isEditing = ref(false);
-const outputAreaRef = ref<HTMLTextAreaElement | null>(null);
-const outputShadowMarkerRef = ref<HTMLSpanElement | null>(null);
 const sidebarWidth = ref(320);
 const isResizingSidebar = ref(false);
 let sidebarResizeStartX = 0;
 let sidebarResizeStartWidth = 0;
 let removeFileDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let analysisDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-const outputShadowState = ref<{ beforeText: string; afterText: string } | null>(null);
 const SIDEBAR_MIN_WIDTH = 260;
 const SIDEBAR_MAX_WIDTH = 520;
 
@@ -377,12 +378,8 @@ async function copyToClipboardAll() {
   await copyToClipboard(outputContext.value);
 }
 
-async function toggleEdit() {
+function toggleEdit() {
     isEditing.value = !isEditing.value;
-    if (isEditing.value) {
-        await nextTick();
-        outputAreaRef.value?.focus();
-    }
 }
 
 async function triggerFileInput() {
@@ -426,60 +423,6 @@ function removeFile(index: number) {
     scheduleProcessPaths(300, 'remove');
 }
 
-const fileListContainer = ref<HTMLElement | null>(null);
-function handleWheel(e: WheelEvent) {
-    handleWheelHorizontal(e, fileListContainer.value);
-}
-
-function clearOutputShadow() {
-  outputShadowState.value = null;
-}
-
-async function handleNodeSelect(fullPath: string) {
-  if (isLoading.value || !outputContext.value) return;
-
-  const anchor = `[FILE PATH]: ${fullPath}`;
-  const anchorIndex = outputContext.value.indexOf(anchor);
-  if (anchorIndex === -1) return;
-
-  outputShadowState.value = {
-    beforeText: outputContext.value.slice(0, anchorIndex),
-    afterText: outputContext.value.slice(anchorIndex),
-  };
-
-  await nextTick();
-  const outputArea = outputAreaRef.value;
-  const marker = outputShadowMarkerRef.value;
-  if (!outputArea || !marker) {
-    clearOutputShadow();
-    return;
-  }
-
-  const maxScrollTop = Math.max(outputArea.scrollHeight - outputArea.clientHeight, 0);
-  const targetScrollTop = Math.min(Math.max(marker.offsetTop, 0), maxScrollTop);
-
-  outputArea.scrollTo({
-    top: targetScrollTop,
-    behavior: 'smooth'
-  });
-
-  clearOutputShadow();
-
-  if (isEditing.value) {
-    requestAnimationFrame(() => {
-      outputArea.focus({ preventScroll: true });
-      outputArea.setSelectionRange(anchorIndex, anchorIndex);
-    });
-    return;
-  }
-
-  requestAnimationFrame(() => {
-    if (!isEditing.value) {
-      outputArea.blur();
-    }
-  });
-}
-
 function startResizeSidebar(e: MouseEvent) {
   isResizingSidebar.value = true;
   sidebarResizeStartX = e.clientX;
@@ -507,207 +450,46 @@ function stopResizeSidebar() {
 
 <template>
   <main class="h-screen flex flex-col items-center p-6 selection:bg-app-primary/10 relative overflow-y-auto">
-    <!-- Header Area -->
-    <div class="w-full max-w-6xl flex justify-between items-center mb-8 shrink-0">
-      <div class="flex flex-col">
-          <h1 class="text-3xl font-black text-app-text tracking-tight flex items-center">
-            CodePulse <span class="ml-2 font-medium opacity-20 text-xl">文脉</span>
-          </h1>
-          <p class="text-app-text-dim text-sm mt-1 font-medium italic opacity-70">
-            一键解析项目依赖，构建完整提示词上下文
-          </p>
-      </div>
-      <button 
-        @click="isSettingsOpen = true"
-        class="p-2.5 bg-app-surface hover:bg-app-surface-hover text-app-text-dim hover:text-app-primary rounded-xl transition-all shadow-app-md border border-app-border cursor-pointer group"
-        title="设置 (Settings)"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover:rotate-45 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      </button>
-    </div>
+    <AppLayoutHeader @open-settings="isSettingsOpen = true" />
 
-    <!-- Top Section: Drop Zone & User Prompt -->
-    <div class="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 shrink-0">
-      <!-- Left: Drop Zone Card -->
-      <div 
-        data-drop-zone="main"
-        class="h-56 rounded-3xl border-2 border-dashed flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden group shadow-app-md bg-app-surface/50 backdrop-blur-sm"
-        :class="isDragging ? (isInvalidDrag ? 'border-app-rose bg-app-rose/5 ring-4 ring-app-rose/5' : 'border-app-primary bg-app-primary-light ring-4 ring-app-primary/5') : 'border-app-border hover:border-app-primary/40 hover:bg-app-surface'"
-      >
-        <div class="flex flex-col items-center space-y-3 z-10 w-full px-6">
-          <div class="w-12 h-12 flex items-center justify-center bg-app-surface rounded-2xl shadow-sm transition-all duration-500 pointer-events-none">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-app-text-mute transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-          </div>
-          <p class="text-base font-bold text-app-text-dim group-hover:text-app-text transition-colors tracking-tight pointer-events-none" :class="isInvalidDrag ? 'text-app-rose' : ''">
-            {{ isDragging ? (isInvalidDrag ? '包含不受支持的二进制文件' : '松开即刻解析...') : '拖入代码文件或功能块目录' }}
-          </p>
-          <div v-if="!isDragging" class="flex gap-2 pt-1">
-              <button @click="triggerFileInput" class="px-3 py-1 bg-app-bg text-[11px] font-bold text-app-text-dim hover:text-app-text border border-app-border rounded-lg hover:border-app-primary/50 transition-all cursor-pointer shadow-sm">添加文件</button>
-              <button @click="triggerDirInput" class="px-3 py-1 bg-app-bg text-[11px] font-bold text-app-text-dim hover:text-app-text border border-app-border rounded-lg hover:border-app-primary/50 transition-all cursor-pointer shadow-sm">添加目录</button>
-          </div>
-        </div>
+    <AppLayoutInputSection
+      v-model:userPrompt="userPrompt"
+      :isDragging="isDragging"
+      :isInvalidDrag="isInvalidDrag"
+      :filesList="filesList"
+      @open-file="triggerFileInput"
+      @open-dir="triggerDirInput"
+      @remove-file="removeFile"
+    />
 
-        <!-- Files List Overlay -->
-        <div v-if="filesList.length > 0 && !isDragging" 
-            ref="fileListContainer"
-            @wheel="handleWheel"
-            class="flex items-center gap-2 w-full overflow-x-auto px-6 mt-4 z-10 custom-scrollbar-h pb-2"
-        >
-            <div 
-              v-for="(file, idx) in filesList" 
-              :key="idx" 
-              @click="removeFile(idx)"
-              class="group/item flex items-center shrink-0 text-[10px] bg-app-surface px-3 py-1.5 rounded-xl border border-app-border hover:border-app-rose/40 hover:bg-app-rose/5 transition-all cursor-pointer text-app-text-dim font-mono select-none shadow-sm"
-              title="点击移除"
-            >
-                <span class="truncate max-w-32 group-hover/item:text-app-rose">
-                    {{ file.path.split('/').pop()?.split('\\').pop() }}
-                </span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-2 text-app-text-mute group-hover/item:text-app-rose transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </div>
-        </div>
-      </div>
+    <AppLayoutGenerateControl
+      :isLoading="isLoading"
+      :hasFiles="filesList.length > 0"
+      @trigger="isLoading ? stopProcessing() : processPaths(filesList.map(f => f.path))"
+    />
 
-      <!-- Right: User Prompt Card -->
-      <div class="h-56 rounded-3xl bg-app-surface shadow-app-md border border-app-border overflow-hidden flex flex-col group focus-within:ring-4 focus-within:ring-app-primary/5 transition-all">
-        <div class="px-5 py-2.5 bg-app-bg/30 border-b border-app-border flex items-center justify-between">
-            <span class="text-[11px] font-black uppercase tracking-widest text-app-text-mute group-focus-within:text-app-primary transition-colors">附加提示词 / 需求</span>
-            <div class="flex gap-1">
-                <div class="w-1.5 h-1.5 rounded-full bg-app-border"></div>
-                <div class="w-1.5 h-1.5 rounded-full bg-app-border"></div>
-            </div>
-        </div>
-        <textarea 
-          v-model="userPrompt"
-          placeholder="例如：请作为核心开发者对这些逻辑做 Code Review；或指定特定功能模块的重构需求..."
-          class="w-full flex-1 px-5 py-4 resize-none text-app-text placeholder:text-app-text-mute bg-transparent focus:outline-none font-sans text-sm leading-relaxed"
-        ></textarea>
-      </div>
-    </div>
+    <AppLayoutResultsSection
+      v-model:outputContext="outputContext"
+      :fileNodes="fileNodes"
+      :sidebarWidth="sidebarWidth"
+      :totalCharacters="totalCharacters"
+      :isEditing="isEditing"
+      :isLoading="isLoading"
+      :enableMinimization="appConfig.enableMinimization"
+      @delete="(fp, ap, ids) => handleNodeDelete(fp, ap, ids)"
+      @toggle-edit="toggleEdit"
+      @copy-output="copyToClipboardAll"
+      @start-resize-sidebar="startResizeSidebar"
+      @upload-files="handleTreeUploadFiles"
+    />
 
-    <!-- Generate Control Area -->
-    <div class="w-full max-w-6xl mb-8 flex justify-center shrink-0">
-        <button 
-          @click="isLoading ? stopProcessing() : processPaths(filesList.map(f => f.path))"
-          :disabled="filesList.length === 0 && !isLoading"
-          class="h-14 px-10 group/btn bg-app-text hover:bg-app-primary text-app-bg font-black rounded-2xl shadow-xl shadow-app-text/10 transition-all active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed flex items-center gap-3 cursor-pointer"
-          :class="isLoading ? 'hover:bg-app-rose!' : ''"
-        >
-          <span v-if="isLoading" class="flex items-center gap-4">
-              <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-              构建中 (点击中断)...
-          </span>
-          <span v-else class="flex items-center gap-4 select-none">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform group-hover/btn:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
-              即刻生成完整上下文
-          </span>
-        </button>
-    </div>
-
-    <!-- Bottom: Results Area -->
-    <div class="w-full max-w-6xl flex-1 flex min-h-[420px] gap-5.5 mb-2">
-      <!-- Left: Sidebar Tree -->
-      <div class="h-full shrink-0" :style="{ width: `${sidebarWidth}px` }">
-        <DependencyTreeSidebar 
-          :fileNodes="fileNodes" 
-          class="w-full"
-          @delete="(fp, ap, ids) => handleNodeDelete(fp, ap, ids)" 
-          @select="handleNodeSelect"
-          @upload-files="handleTreeUploadFiles"
-        />
-      </div>
-
-      <div
-        class="relative shrink-0 w-1.5 -mx-3 cursor-col-resize group"
-        @mousedown.prevent="startResizeSidebar"
-      >
-        <div
-          class="absolute inset-y-0 my-2 left-1/2 -translate-x-1/2 w-1 rounded-full bg-app-border/70 rounded-full transition-colors opacity-0 group-hover:opacity-100"
-        ></div>
-          <!-- :class="isResizingSidebar ? 'bg-app-primary' : 'group-hover:bg-app-primary/80'" -->
-      </div>
-
-      <!-- Right: Main Context Output -->
-      <div class="flex-1 flex flex-col bg-app-surface border border-app-border rounded-3xl shadow-app-md relative overflow-hidden">
-        <div class="px-5 py-2 bg-app-surface/80 border-b border-app-border rounded-t-3xl flex justify-between items-center backdrop-blur-xl shrink-0 z-10">
-          <div class="flex flex-col">
-              <span class="text-sm font-black text-app-text flex items-center gap-4">
-                  输出上下文
-                  <span v-if="outputContext" class="text-[9px] bg-app-bg text-app-text px-3 py-0.5 rounded-lg border border-app-text/10 font-black">
-                    {{ totalCharacters.toLocaleString() }} 字
-                  </span>
-              </span>
-          </div>
-          <div class="flex items-center space-x-2">
-            <button 
-              v-if="outputContext"
-              @click="toggleEdit"
-              class="p-1.5 bg-app-surface hover:bg-app-surface-hover text-app-text-dim hover:text-app-primary rounded-lg transition-all border border-app-border cursor-pointer"
-              :class="isEditing ? 'bg-app-primary/5 border-app-primary/30 ring-2 ring-app-primary/5 text-app-primary' : ''"
-              :title="isEditing ? '应用更改' : '快速编辑'"
-            >
-              <svg v-if="!isEditing" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-            </button>
-            <button 
-              v-if="outputContext"
-              @click="copyToClipboardAll"
-              class="p-2 py-1.5 bg-app-text hover:bg-app-text/90 text-app-bg text-[11px] font-black rounded-lg transition-all active:scale-95 flex items-center gap-1.5 shadow-sm cursor-pointer"
-              title="复制全部"
-            >
-              复制
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-            </button>
-          </div>
-        </div>
-        <div class="relative overflow-hidden w-full h-full flex-1 rounded-b-3xl py-2 px-2">
-          <div
-            v-if="outputShadowState"
-            class="absolute inset-0 pointer-events-none opacity-0 overflow-y-scroll overflow-x-hidden p-2 font-mono text-[13px] leading-relaxed z-[-1] shadow-output-text"
-            aria-hidden="true"
-          >
-            {{ outputShadowState.beforeText }}<span ref="outputShadowMarkerRef"></span>{{ outputShadowState.afterText }}
-          </div>
-          <textarea 
-            ref="outputAreaRef"
-            :readonly="!isEditing"
-            v-model="outputContext"
-            placeholder="所有的上下文内容都在这里准备就绪..."
-            class="w-full h-full flex-1 p-2 focus:outline-none font-mono text-[13px] leading-relaxed resize-none transition-all duration-300 z-0 bg-transparent text-app-text placeholder:text-app-text-mute"
-            :class="[isEditing ? 'bg-app-primary/5 cursor-text!' : 'cursor-default']"
-          ></textarea>
-        </div>
-        
-        <!-- Loading Overlay -->
-        <div v-if="isLoading" class="absolute inset-0 bg-app-surface/60 backdrop-blur-md flex flex-col items-center justify-center z-20 pointer-events-none transition-all">
-          <div class="relative w-12 h-12 mb-4">
-             <div class="absolute inset-0 rounded-full border-4 border-app-primary/10"></div>
-             <div class="absolute inset-0 rounded-full border-4 border-t-app-primary animate-spin"></div>
-          </div>
-          <p v-if="appConfig.enableMinimization" class="text-app-primary font-black tracking-widest text-xs uppercase animate-pulse">正在深度解析并压缩代码...</p>
-          <p v-else class="text-app-primary font-black tracking-widest text-xs uppercase animate-pulse">正在解析依赖...</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Settings Modal -->
     <AppSettingsModal 
       v-model:show="isSettingsOpen" 
       :settings="appConfig"
       @update:settings="val => Object.assign(appConfig, val)"
     />
 
-    <!-- Version Info -->
-    <div class="fixed bottom-2 right-3 text-[10px] font-mono text-app-text-mute opacity-30 select-none pointer-events-none z-0">
-      v{{ version }}
-    </div>
+    <AppLayoutVersionInfo :version="version" />
   </main>
 </template>
 
