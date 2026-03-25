@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import FileTreeNode from './FileTreeNode.vue';
-import { getDirname } from '../utils';
+import { getDirname } from '../../utils';
 
 const props = defineProps<{
   nodes: {path: string, content: string, abs_path: string, originId?: string}[];
