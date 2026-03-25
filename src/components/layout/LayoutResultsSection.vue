@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import DependencyTreeSidebar from "../DependencyTreeSidebar.vue";
+import DependencyTreeSidebar from "../file-tree/DependencyTreeSidebar.vue";
 
 const props = defineProps<{
   fileNodes: {path: string, content: string, abs_path: string, originId?: string}[];

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import AppSettingsModal from "./components/AppSettingsModal.vue";
+import AppSettingsModal from "./components/settings/AppSettingsModal.vue";
 import LayoutGenerateControl from "./components/layout/LayoutGenerateControl.vue";
 import LayoutHeader from "./components/layout/LayoutHeader.vue";
 import LayoutInputSection from "./components/layout/LayoutInputSection.vue";

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import SettingsModal from "./SettingsModal.vue";
-import { APP_SETTINGS_GROUPS } from "../config/appSettings";
-import type { AppConfig } from "../types";
+import SettingsModal from "../common/SettingsModal.vue";
+import { APP_SETTINGS_GROUPS } from "../../config/appSettings";
+import type { AppConfig } from "../../types";
 
 const props = defineProps<{
   show: boolean;
