@@ -70,3 +70,14 @@ export const handleWheelHorizontal = (e: WheelEvent, container: HTMLElement | nu
     });
   }
 };
+
+export const createFileListItem = (path: string) => {
+  return {
+    id: Math.random().toString(36).substring(2, 11),
+    path
+  };
+};
+
+export const createFileList = (paths: string[]) => {
+  return paths.map(path => createFileListItem(path));
+};

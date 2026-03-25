@@ -22,3 +22,31 @@ export interface SettingGroup {
   color?: string;
   items: SettingItem[];
 }
+
+export interface FileListItem {
+  id: string;
+  path: string;
+}
+
+export interface FileNode {
+  path: string;
+  content: string;
+  abs_path: string;
+  originId?: string;
+}
+
+export interface AppConfig {
+  maxDepth: number;
+  includedTypes: string[];
+  ignoreExts: string;
+  ignoreDeepParse: string;
+  customPrompt: string;
+  generateTree: boolean;
+  highlightPrimaryFiles: boolean;
+  autoGenerate: boolean;
+  customIncludedTypes: string;
+  projectRoots: string;
+  enableMinimization: boolean;
+  minimizationThreshold: number;
+  minimizationDepthThreshold: number;
+}
