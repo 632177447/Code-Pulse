@@ -32,8 +32,13 @@ const outputShadowState = ref<{ beforeText: string; afterText: string } | null>(
 
 watch(() => props.isEditing, async (isEditing) => {
   if (!isEditing) return;
+  const currentScrollTop = outputAreaRef.value?.scrollTop ?? 0;
   await nextTick();
-  outputAreaRef.value?.focus();
+  requestAnimationFrame(() => {
+    if (!outputAreaRef.value) return;
+    outputAreaRef.value.focus({ preventScroll: true });
+    outputAreaRef.value.scrollTop = currentScrollTop;
+  });
 });
 
 function clearOutputShadow() {
