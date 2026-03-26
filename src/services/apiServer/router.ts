@@ -1,5 +1,10 @@
 import { Hono } from 'hono';
-import { handleGetOutline, handleGetContext } from './handlers';
+import { 
+  handleGetOutline, 
+  handleGetContext,
+  handleHealthCheck,
+  handleGetInfo
+} from './handlers';
 
 // 初始化 Hono 应用
 const app = new Hono();
@@ -13,6 +18,8 @@ app.use('*', async (c, next) => {
 });
 
 // 注册路由
+app.get('/api/health', handleHealthCheck);
+app.get('/api/info', handleGetInfo);
 app.get('/api/outline', handleGetOutline);
 app.get('/api/context', handleGetContext);
 
