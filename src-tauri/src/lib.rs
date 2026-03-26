@@ -7,9 +7,9 @@ use std::fs;
 use std::sync::{Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-struct AppState {
-    abort_handle: Arc<AtomicBool>,
-    parse_cache: Arc<cache::FileCache>,
+pub struct AppState {
+    pub abort_handle: Arc<AtomicBool>,
+    pub parse_cache: Arc<cache::FileCache>,
 }
 
 #[tauri::command]
