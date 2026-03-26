@@ -56,7 +56,10 @@
     "updater": {
       "active": true,
       "endpoints": [
+        // 生产环境更新地址
         "https://github.com/LingLingDayo/Code-Pulse/releases/latest/download/latest.json"
+        // 本地测试地址
+        // "http://localhost:8080/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkyQUY0QTI0NTg0REZFRTQKUldUay9rMVlKRXF2a2w2dDAwRU05WCtLY0xkQWhXTVJXVmNzSDM3WitIMHBTd3N1aUcrc0daeWEK"
     }
