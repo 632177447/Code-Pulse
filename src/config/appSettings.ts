@@ -9,6 +9,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   ignoreDeepParse: "package.json, tsconfig.json, vite.config.ts, tauri.conf.json, README.md, Cargo.toml, go.mod, pom.xml, .env, *.test.ts, *.spec.ts",
   customPrompt: "",
   generateTree: true,
+  generateRelationshipText: true,
   highlightPrimaryFiles: true,
   autoGenerate: true,
   customIncludedTypes: "",
@@ -151,6 +152,12 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         type: "switch",
         label: "包含文件树视图",
         description: "在输出结果的开头生成项目的层级目录树。"
+      },
+      {
+        id: "generateRelationshipText",
+        type: "switch",
+        label: "包含文件关系说明",
+        description: "在输出结果头部生成一段便于 AI 理解的文件依赖关系摘要。"
       },
       {
         id: "highlightPrimaryFiles",

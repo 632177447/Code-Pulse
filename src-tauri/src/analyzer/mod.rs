@@ -26,6 +26,7 @@ struct CollectedFile {
     raw_content: String,
     minimized_content: Option<String>,
     abs_path: PathBuf,
+    direct_dependencies: Vec<PathBuf>,
     depth: usize,
     ext: String,
     mtime: Option<std::time::SystemTime>,
@@ -36,6 +37,8 @@ pub struct FileNode {
     pub path: String,
     pub content: String,
     pub abs_path: String,
+    pub depth: usize,
+    pub dependencies: Vec<String>,
 }
 
 pub fn analyze_dependencies(
@@ -222,18 +225,25 @@ fn process_file(
                 raw_content: entry.raw_content.clone(),
                 minimized_content: entry.minimized_content.clone(),
                 abs_path: abs_path.clone(),
+                direct_dependencies: Vec::new(),
                 depth: current_depth,
                 ext: file_ext.clone(),
                 mtime: Some(t),
             });
+            let result_index = result_blocks.len() - 1;
 
             // 缓存命中时仍需追踪依赖
             let content = entry.raw_content;
             let ext = abs_path.extension().and_then(|e| e.to_str()).unwrap_or("");
             if !should_ignore(&abs_path, ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes) {
                 let base_dir = abs_path.parent().unwrap_or(Path::new(""));
+                let mut direct_dependencies = Vec::new();
+                let mut direct_dependency_set = HashSet::new();
                 for dep in extract_dependencies(&content, ext) {
                     if let Some(resolved) = resolve_path(base_dir, &dep, ext, base_path) {
+                        if direct_dependency_set.insert(resolved.clone()) {
+                            direct_dependencies.push(resolved.clone());
+                        }
                         // 如果依赖项属于根文件集，深度保持为 0，否则才 +1
                         let next_depth = if all_root_files.contains(&resolved) { 0 } else { current_depth + 1 };
                         process_file(&resolved, next_depth, max_depth, visited, result_blocks, base_path,
@@ -247,6 +257,9 @@ fn process_file(
                     if let Some(index) = component_index {
                         for comp_name in extract_vue_component_tags(&content) {
                             if let Some(comp_path) = index.get(&comp_name) {
+                                if direct_dependency_set.insert(comp_path.clone()) {
+                                    direct_dependencies.push(comp_path.clone());
+                                }
                                 let next_depth = if all_root_files.contains(comp_path) { 0 } else { current_depth + 1 };
                                 process_file(comp_path, next_depth, max_depth, visited, result_blocks, base_path,
                                     ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
@@ -256,6 +269,7 @@ fn process_file(
                         }
                     }
                 }
+                result_blocks[result_index].direct_dependencies = direct_dependencies;
             }
             return;
         }
@@ -274,17 +288,24 @@ fn process_file(
             raw_content: content.clone(),
             minimized_content: None,
             abs_path: abs_path.clone(),
+            direct_dependencies: Vec::new(),
             depth: current_depth,
             ext: file_ext.clone(),
             mtime,
         });
+        let result_index = result_blocks.len() - 1;
         
         let ext = abs_path.extension().and_then(|e| e.to_str()).unwrap_or("");
         
         if !should_ignore(&abs_path, ignore_deep_names, ignore_deep_extensions, ignore_deep_filenames, ignore_deep_regexes) {
             let base_dir = abs_path.parent().unwrap_or(Path::new(""));
+            let mut direct_dependencies = Vec::new();
+            let mut direct_dependency_set = HashSet::new();
             for dep in extract_dependencies(&content, ext) {
                 if let Some(resolved) = resolve_path(base_dir, &dep, ext, base_path) {
+                    if direct_dependency_set.insert(resolved.clone()) {
+                        direct_dependencies.push(resolved.clone());
+                    }
                     let next_depth = if all_root_files.contains(&resolved) { 0 } else { current_depth + 1 };
                     process_file(&resolved, next_depth, max_depth, visited, result_blocks, base_path, 
                         ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
@@ -297,6 +318,9 @@ fn process_file(
                 if let Some(index) = component_index {
                     for comp_name in extract_vue_component_tags(&content) {
                         if let Some(comp_path) = index.get(&comp_name) {
+                            if direct_dependency_set.insert(comp_path.clone()) {
+                                direct_dependencies.push(comp_path.clone());
+                            }
                             let next_depth = if all_root_files.contains(comp_path) { 0 } else { current_depth + 1 };
                             process_file(comp_path, next_depth, max_depth, visited, result_blocks, base_path,
                                 ignore_names, ignore_extensions, ignore_filenames, ignore_regexes,
@@ -306,6 +330,7 @@ fn process_file(
                     }
                 }
             }
+            result_blocks[result_index].direct_dependencies = direct_dependencies;
         }
     }
 }
@@ -337,6 +362,10 @@ fn finalize_result(
     minimization_depth_threshold: usize,
     parse_cache: &crate::cache::FileCache,
 ) -> Vec<FileNode> {
+    let display_path_map: HashMap<PathBuf, String> = result_blocks
+        .iter()
+        .map(|file| (file.abs_path.clone(), file.path.clone()))
+        .collect();
     let total_unminimized_size: usize = result_blocks
         .iter()
         .map(|file| format_file_content(&file.path, file.depth, &file.raw_content).len())
@@ -368,6 +397,11 @@ fn finalize_result(
             path: file.path.clone(),
             content: format_file_content(&file.path, file.depth, &final_content),
             abs_path: file.abs_path.to_string_lossy().into_owned(),
+            depth: file.depth,
+            dependencies: file.direct_dependencies
+                .into_iter()
+                .filter_map(|dependency| display_path_map.get(&dependency).cloned())
+                .collect(),
         }
     }).collect()
 }

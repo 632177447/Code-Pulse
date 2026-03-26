@@ -1,16 +1,72 @@
 export interface WorkerInput {
   requestId?: number;
-  fileNodes: { path: string; content: string; isPrimary?: boolean }[];
+  fileNodes: { path: string; content: string; depth: number; dependencies: string[]; isPrimary?: boolean }[];
   generateTree: boolean;
+  generateRelationshipText: boolean;
   highlightPrimaryFiles?: boolean;
   customPrompt: string;
   userPrompt: string;
   longContextThreshold: number;
 }
 
+function buildRelationshipText(fileNodes: WorkerInput["fileNodes"]) {
+  if (fileNodes.length === 0) {
+    return "";
+  }
+
+  const visiblePaths = new Set(fileNodes.map(node => node.path));
+  const incomingMap = new Map<string, Set<string>>();
+
+  fileNodes.forEach(node => {
+    incomingMap.set(node.path, new Set<string>());
+  });
+
+  fileNodes.forEach(node => {
+    node.dependencies.forEach(dependency => {
+      if (!visiblePaths.has(dependency)) {
+        return;
+      }
+      if (!incomingMap.has(dependency)) {
+        incomingMap.set(dependency, new Set<string>());
+      }
+      incomingMap.get(dependency)?.add(node.path);
+    });
+  });
+
+  const sortedNodes = [...fileNodes].sort((a, b) => {
+    if (a.depth !== b.depth) {
+      return a.depth - b.depth;
+    }
+    return a.path.localeCompare(b.path);
+  });
+  const primaryFiles = sortedNodes.filter(node => node.isPrimary).map(node => node.path);
+  const maxDepth = sortedNodes.reduce((max, node) => Math.max(max, node.depth), 0);
+
+  const lines = [
+    "========================================",
+    "[FILE RELATIONSHIPS]",
+    "========================================",
+    `Summary: total files ${sortedNodes.length}; primary files ${primaryFiles.length > 0 ? primaryFiles.join(", ") : "none"}; max dependency layer ${maxDepth}.`,
+    "",
+    "Direct dependency map:",
+    ...sortedNodes.map(node => {
+      const tags = [`layer ${node.depth}`];
+      if (node.isPrimary) {
+        tags.unshift("primary");
+      }
+      const dependencies = node.dependencies.length > 0 ? node.dependencies.join(", ") : "none";
+      const incoming = Array.from(incomingMap.get(node.path) ?? []).sort();
+      return `- ${node.path} [${tags.join(", ")}] | depends on: ${dependencies} | used by: ${incoming.length > 0 ? incoming.join(", ") : "none"}`;
+    }),
+    ""
+  ];
+
+  return lines.join("\n") + "\n";
+}
+
 // 所有耗时的字符串拼接全部在 Worker 线程执行，主线程不受影响
 self.onmessage = (e: MessageEvent<WorkerInput>) => {
-  const { requestId, fileNodes, generateTree, highlightPrimaryFiles, customPrompt, userPrompt, longContextThreshold } = e.data;
+  const { requestId, fileNodes, generateTree, generateRelationshipText, highlightPrimaryFiles, customPrompt, userPrompt, longContextThreshold } = e.data;
 
   if (fileNodes.length === 0) {
     self.postMessage({ requestId, content: '' });
@@ -38,6 +94,10 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
       prevComponents = components;
     }
     finalContext += tree + '\n';
+  }
+
+  if (generateRelationshipText) {
+    finalContext += buildRelationshipText(fileNodes);
   }
 
   if (customPrompt.trim()) {

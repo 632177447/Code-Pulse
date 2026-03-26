@@ -32,6 +32,8 @@ export interface FileNode {
   path: string;
   content: string;
   abs_path: string;
+  depth: number;
+  dependencies: string[];
   originId?: string;
 }
 
@@ -42,6 +44,7 @@ export interface AppConfig {
   ignoreDeepParse: string;
   customPrompt: string;
   generateTree: boolean;
+  generateRelationshipText: boolean;
   highlightPrimaryFiles: boolean;
   autoGenerate: boolean;
   customIncludedTypes: string;
