@@ -28,3 +28,5 @@ src-tauri/target
 ~
 *.key
 *.key.pub
+mock-server/latest.json
+mock-server/*.msi

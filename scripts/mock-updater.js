@@ -1,115 +1,139 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 /**
  * Tauri 本地更新模拟脚本
  * 功能：
- * 1. 在本地生成一个版本号更高的 mock-server/latest.json
- * 2. 自动寻找已构建的安装包并生成签名
+ * 1. 默认生成一个仅用于 check() 检测的 mock-server/latest.json
+ * 2. 可选地复用已构建的 MSI 生成可下载的本地包
  * 3. 提示如何启动本地服务器进行测试
  */
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 const mockDir = path.join(rootDir, 'mock-server');
-
-// 配置路径
 const tauriConfPath = path.join(rootDir, 'src-tauri/tauri.conf.json');
+const bundleDir = path.join(rootDir, 'src-tauri/target/release/bundle/msi');
+const args = process.argv.slice(2);
+const shouldUseBuiltInstaller = args.includes('--use-built-installer');
+
+function getNextVersion(currentVersion) {
+  const [major, minor, patch] = currentVersion.split('.').map(Number);
+
+  if ([major, minor, patch].some(Number.isNaN)) {
+    throw new Error(`无法从当前版本号推导 mock 版本: ${currentVersion}`);
+  }
+
+  return `${major}.${minor}.${patch + 1}`;
+}
+
+function resolveBuiltInstaller() {
+  if (!fs.existsSync(bundleDir)) {
+    throw new Error(`未找到构建目录: ${bundleDir}`);
+  }
+
+  const files = fs.readdirSync(bundleDir);
+  const msiFile = files.find((file) => file.endsWith('.msi') && !file.includes('installer'));
+
+  if (!msiFile) {
+    throw new Error('在 bundle 目录中未找到 .msi 文件');
+  }
+
+  return {
+    name: msiFile,
+    path: path.join(bundleDir, msiFile),
+  };
+}
+
+function signInstaller(installerPath) {
+  try {
+    const output = execFileSync(
+      'npx',
+      ['tauri', 'signer', 'sign', installerPath],
+      {
+        cwd: rootDir,
+        encoding: 'utf-8',
+        env: process.env,
+      }
+    );
+    const lines = output.split(/\r?\n/);
+    const signature = lines.find((line) => line.trim().startsWith('dW50cnVzdGVk'))?.trim();
+
+    if (!signature) {
+      throw new Error('未能从 tauri signer 输出中提取签名');
+    }
+
+    return signature;
+  } catch (error) {
+    throw new Error(`签名失败: ${error.message}`);
+  }
+}
 
 async function run() {
   console.log('🚀 开始准备本地更新测试环境...');
 
-  // 1. 读取当前配置
   if (!fs.existsSync(tauriConfPath)) {
     console.error('❌ 未找到 tauri.conf.json');
     return;
   }
+
   const tauriConf = JSON.parse(fs.readFileSync(tauriConfPath, 'utf-8'));
   const currentVersion = tauriConf.version;
   const productName = tauriConf.productName || 'CodePulse';
-  
-  // 模拟一个更高的版本
-  const [major, minor, patch] = currentVersion.split('.').map(Number);
-  const nextVersion = `${major}.${minor}.${patch + 1}`;
-
-  console.log(`[Info] 当前版本: ${currentVersion}, 模拟目标版本: ${nextVersion}`);
-
-  // 2. 检查私钥环境变量
-  const privateKey = process.env.TAURI_SIGNING_PRIVATE_KEY;
-  if (!privateKey) {
-    console.warn('⚠️ 未检测到环境变量 TAURI_SIGNING_PRIVATE_KEY');
-    console.log('请先执行以下命令设置私钥（或将其写入 .env）:');
-    console.log('Windows (Powershell): $env:TAURI_SIGNING_PRIVATE_KEY="你的私钥内容"');
-    console.log('\n如果你没有私钥，可以生成一个测试用的：npx tauri signer generate -w ./test.key');
-    return;
-  }
-
-  // 3. 寻找安装包 (优先找 MSI)
-  const bundleDir = path.join(rootDir, `src-tauri/target/release/bundle/msi`);
-  if (!fs.existsSync(bundleDir)) {
-    console.error(`❌ 未找到构建目录: ${bundleDir}`);
-    console.log('请先运行 npm run tauri build 进行一次正式构建。');
-    return;
-  }
-
-  const files = fs.readdirSync(bundleDir);
-  const msiFile = files.find(f => f.endsWith('.msi') && !f.includes('installer'));
-  
-  if (!msiFile) {
-    console.error('❌ 在 bundle 目录中未找到 .msi 文件');
-    return;
-  }
-
-  const msiPath = path.join(bundleDir, msiFile);
-  console.log(`[Info] 找到安装包: ${msiFile}`);
-
-  // 4. 生成签名
-  console.log('[Task] 正在生成签名...');
-  let signature = '';
-  try {
-    // 使用 tauri-cli 生成签名
-    const output = execSync(`npx tauri signer sign -k "${privateKey}" "${msiPath}"`, { encoding: 'utf-8' });
-    // 提取输出中以 dW50cnVzdGVk 开头的签名字符串
-    const lines = output.split('\n');
-    signature = lines.find(line => line.trim().startsWith('dW50cnVzdGVk'))?.trim();
-    
-    if (!signature) {
-      // 备选方案：尝试提取非空最后一行
-      signature = lines.filter(l => l.trim()).pop()?.trim();
-    }
-    
-    console.log(`✅ 签名提取成功: ${signature.substring(0, 20)}...`);
-  } catch (err) {
-    console.error('❌ 签名失败:', err.message);
-    return;
-  }
-
-  // 5. 准备 mock-server 目录
-  if (!fs.existsSync(mockDir)) {
-    fs.mkdirSync(mockDir);
-  }
-
-  // 拷贝安装包到 mock-server (为了让本地 HTTP server 访问到)
-  const targetMsiName = `${productName}_${nextVersion}_x64_en-US.msi`;
-  fs.copyFileSync(msiPath, path.join(mockDir, targetMsiName));
-  console.log(`[Task] 已将安装包拷贝并重命名为: ${targetMsiName}`);
-
-  // 6. 生成最新的 latest.json (符合 Tauri v2 格式)
+  const nextVersion = getNextVersion(currentVersion);
+  const targetInstallerName = `${productName}_${nextVersion}_x64_en-US.msi`;
+  const targetInstallerPath = path.join(mockDir, targetInstallerName);
+  const latestJsonPath = path.join(mockDir, 'latest.json');
+  const defaultDownloadUrl = `http://localhost:8080/${targetInstallerName}`;
   const latestJson = {
     version: nextVersion,
-    notes: `Test update from ${currentVersion} to ${nextVersion}`,
+    notes: `Local mock update for detection only. Current: ${currentVersion}, Target: ${nextVersion}`,
     pub_date: new Date().toISOString(),
     platforms: {
-      "windows-x86_64": {
-        signature: signature,
-        url: `http://localhost:8080/${targetMsiName}`
-      }
-    }
+      'windows-x86_64': {
+        signature: 'LOCAL_CHECK_ONLY_SIGNATURE',
+        url: defaultDownloadUrl,
+      },
+    },
   };
 
-  fs.writeFileSync(path.join(mockDir, 'latest.json'), JSON.stringify(latestJson, null, 2));
+  console.log(`[Info] 当前版本: ${currentVersion}, 模拟目标版本: ${nextVersion}`);
+  console.log(`[Info] 当前模式: ${shouldUseBuiltInstaller ? '复用已构建安装包' : '仅检测更新'}`);
+
+  if (!fs.existsSync(mockDir)) {
+    fs.mkdirSync(mockDir, { recursive: true });
+  }
+
+  if (shouldUseBuiltInstaller) {
+    if (!process.env.TAURI_SIGNING_PRIVATE_KEY) {
+      console.error('❌ 复用已构建安装包模式需要环境变量 TAURI_SIGNING_PRIVATE_KEY');
+      console.log('请先在 Powershell 中执行: $env:TAURI_SIGNING_PRIVATE_KEY="你的私钥内容"');
+      return;
+    }
+
+    let builtInstaller;
+
+    try {
+      builtInstaller = resolveBuiltInstaller();
+      console.log(`[Info] 找到安装包: ${builtInstaller.name}`);
+      console.log('[Task] 正在生成签名...');
+      latestJson.platforms['windows-x86_64'].signature = signInstaller(builtInstaller.path);
+      fs.copyFileSync(builtInstaller.path, targetInstallerPath);
+      latestJson.notes = `Local mock update with built installer. Current: ${currentVersion}, Target: ${nextVersion}`;
+      console.log(`[Task] 已将安装包拷贝并重命名为: ${targetInstallerName}`);
+    } catch (error) {
+      console.error(`❌ ${error.message}`);
+      console.log('请先执行 npx tauri build，或去掉 --use-built-installer 改为仅检测更新模式。');
+      return;
+    }
+  } else {
+    latestJson.notes = `Local mock update for detection only. Current: ${currentVersion}, Target: ${nextVersion}. Please cancel installation after check.`;
+    console.log('[Warn] 当前 latest.json 仅用于 check() 检测。若继续安装，预期会失败。');
+  }
+
+  fs.writeFileSync(latestJsonPath, JSON.stringify(latestJson, null, 2) + '\n');
   console.log('✅ 已生成 mock-server/latest.json');
 
   console.log('\n' + '='.repeat(50));
@@ -118,8 +142,13 @@ async function run() {
   console.log('   npx serve ./mock-server -p 8080');
   console.log('\n2. 临时修改 src-tauri/tauri.conf.json:');
   console.log(`   "endpoints": ["http://localhost:8080/latest.json"]`);
-  console.log('\n3. 启动开发环境测试更新流程:');
-  console.log('   npm run tauri dev');
+  console.log('\n3. 启动 Tauri 应用测试更新检测:');
+  console.log('   npm run tauri -- dev');
+  if (!shouldUseBuiltInstaller) {
+    console.log('\n4. 当前为仅检测模式:');
+    console.log('   建议只验证是否能发现新版本，不要继续安装。');
+    console.log('   如需测试下载链路，请先构建安装包后执行: npm run mock-updater -- --use-built-installer');
+  }
   console.log('='.repeat(50));
 }
 
