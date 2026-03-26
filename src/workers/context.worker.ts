@@ -163,13 +163,32 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
     if (!highlightPrimaryFiles || !n.isPrimary) {
       return displayContent;
     }
+    
+    const headerSeparator = '========================================\n';
+    const firstSplit = displayContent.indexOf(headerSeparator);
+    const secondSplit = displayContent.indexOf(headerSeparator, firstSplit + headerSeparator.length);
+    
+    let pathInfo = '';
+    let layerInfo = '';
+    let actualContent = displayContent;
+
+    if (firstSplit !== -1 && secondSplit !== -1) {
+      const headerBlock = displayContent.slice(firstSplit, secondSplit);
+      const lines = headerBlock.split('\n');
+      pathInfo = lines.find(l => l.startsWith('[FILE PATH]:')) || '';
+      layerInfo = lines.find(l => l.includes('(Dependency Layer:')) || '';
+      actualContent = displayContent.slice(secondSplit + headerSeparator.length).trimStart();
+    }
+
     return [
       '========================================',
       '[PRIMARY FILE]',
       'This file was directly selected by the user. Use it as the primary reference for this task.',
+      pathInfo,
+      layerInfo,
       '========================================',
-      displayContent
-    ].join('\n');
+      actualContent
+    ].filter(Boolean).join('\n');
   }).join('\n\n');
 
   if (PENDING_USER_PROMPT && blocksContent.length <= longContextThreshold) {
