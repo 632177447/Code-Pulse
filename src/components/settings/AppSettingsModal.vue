@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import SettingsModal from "../common/SettingsModal.vue";
+import SettingsModal from "../common/SettingsModal/SettingsModal.vue";
 import { APP_SETTINGS_GROUPS } from "../../config/appSettings";
 import type { AppConfig } from "../../types";
 
