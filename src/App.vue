@@ -7,6 +7,7 @@ import LayoutInputSection from "./components/layout/LayoutInputSection.vue";
 import LayoutResultsSection from "./components/layout/LayoutResultsSection.vue";
 import LayoutVersionInfo from "./components/layout/LayoutVersionInfo.vue";
 import { APP_CONFIG_STORAGE_KEY, createDefaultAppConfig } from "./config/appSettings";
+import { apiServerManager } from "./services/apiServer";
 import { useContextGeneration } from "./composables/useContextGeneration";
 import { useFileListManager } from "./composables/useFileListManager";
 import { copyToClipboard } from "./utils";
@@ -31,6 +32,10 @@ const appConfig = reactive(createDefaultAppConfig());
 watch(appConfig, (newVal) => {
   localStorage.setItem(APP_CONFIG_STORAGE_KEY, JSON.stringify(newVal));
 }, { deep: true });
+
+watch(() => appConfig.apiEnabled, async (enabled) => {
+  await apiServerManager.syncState(enabled, appConfig.apiPort);
+});
 
 const {
   clearGeneratedContext,
@@ -74,6 +79,9 @@ onMounted(() => {
       console.error("Failed to load config:", e);
     }
   }
+
+  // 初始化 API Server 状态
+  apiServerManager.syncState(appConfig.apiEnabled, appConfig.apiPort);
 
   const savedSidebarWidth = localStorage.getItem("sidebarWidth");
   if (savedSidebarWidth) {

@@ -1,5 +1,6 @@
 import type { AppConfig, SettingGroup } from "../types";
 import { extractDefaultSettings } from "../components/common/SettingsModal/utils";
+import { apiServerManager } from "../services/apiServer";
 
 export const APP_CONFIG_STORAGE_KEY = "appConfig";
 
@@ -202,8 +203,10 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         description: "点击重启 API 服务，使最新的端口配置生效。",
         buttonText: "重启服务",
         visible: (settings: any) => settings.apiEnabled === true,
-        onClick: (settings: any) => {
-          console.log("Restarting API Service at port:", settings?.apiPort || 13535);
+        onClick: async (settings: any) => {
+          const port = settings?.apiPort || 13535;
+          console.log("Restarting API Service at port:", port);
+          await apiServerManager.start(port);
         }
       }
     ]
