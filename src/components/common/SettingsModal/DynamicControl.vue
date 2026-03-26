@@ -4,7 +4,8 @@ import type { SettingItem } from './types';
 
 const props = defineProps<{
   config: SettingItem;
-  modelValue: any;
+  modelValue?: any;
+  settings?: any;
 }>();
 
 const emit = defineEmits(['update:modelValue']);
@@ -102,6 +103,23 @@ const value = computed({
         </div>
         <span class="text-xs font-black tracking-widest text-app-text-mute group-hover:text-app-text transition-colors">{{ opt.label }}</span>
       </label>
+    </div>
+  </div>
+
+  <!-- Button -->
+  <div v-else-if="config.type === 'button'" :class="[config.label ? 'space-y-3' : '']">
+    <div class="flex items-center justify-between">
+      <div class="flex flex-col pr-6">
+        <span v-if="config.label" class="text-[11px] font-black tracking-widest text-app-text-dim">{{ config.label }}</span>
+        <span v-if="config.description" class="text-[11px] text-app-text-mute italic mt-1 leading-relaxed opacity-80">{{ config.description }}</span>
+      </div>
+      <button 
+        @click="config.type === 'button' && config.onClick?.(settings)"
+        class="shrink-0 px-6 py-2.5 font-black text-xs uppercase tracking-[0.2em] rounded-xl transition-all shadow-app-sm border border-app-border hover:bg-app-primary hover:text-white hover:border-transparent active:scale-95"
+        :class="(config.type === 'button' && config.colorClass) || 'text-app-text bg-app-surface'"
+      >
+        {{ config.type === 'button' ? config.buttonText : '' }}
+      </button>
     </div>
   </div>
 

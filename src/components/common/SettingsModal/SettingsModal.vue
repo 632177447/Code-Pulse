@@ -131,7 +131,7 @@ const isItemVisible = (item: SettingItem): boolean => {
             <div class="space-y-8">
               <template v-for="item in currentGroup.items" :key="item.id">
                 <div v-if="isItemVisible(item)" class="group/item">
-                  <DynamicControl :config="item" v-model="localSettings[item.id]" />
+                  <DynamicControl :config="item" :settings="localSettings" v-model="localSettings[item.id]" />
                 </div>
               </template>
             </div>
