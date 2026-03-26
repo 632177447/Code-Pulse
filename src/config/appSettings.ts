@@ -122,6 +122,41 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
     ]
   },
   {
+    id: "apiService",
+    title: "本地 API 服务",
+    colorClass: "text-orange-400",
+    items: [
+      {
+        id: "apiEnabled",
+        type: "switch",
+        label: "启用核心 API 服务",
+        description: "开启后，您可以通过 HTTP 调用获取当前项目的依赖关系大纲或完整解析上下文。",
+        defaultValue: false
+      },
+      {
+        id: "apiPort",
+        type: "input",
+        inputType: "number",
+        label: "API 监听端口",
+        description: "运行服务绑定的本地端口号，建议不冲突的情况下使用。",
+        placeholder: "13535",
+        defaultValue: 13535,
+        visible: (settings: any) => settings.apiEnabled === true
+      },
+      {
+        id: "startApiAction",
+        type: "button",
+        label: "服务运行状态",
+        description: "点击重启 API 服务，使最新的端口配置生效。",
+        buttonText: "重启服务",
+        visible: (settings: any) => settings.apiEnabled === true,
+        onClick: (settings: any) => {
+          console.log("Restarting API Service at port:", settings?.apiPort || 13535);
+        }
+      }
+    ]
+  },
+  {
     id: "filtering",
     title: "过滤与优化",
     colorClass: "text-purple-400",
