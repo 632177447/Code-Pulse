@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, watch, reactive, computed } from 'vue';
 import DynamicControl from './DynamicControl.vue';
+import type { SettingGroup, SettingItem } from './types';
 
 const props = defineProps<{
   show: boolean;
   settings: any;
-  groups: any[];
+  groups: SettingGroup[];
 }>();
 
 const emit = defineEmits(['update:show', 'update:settings', 'save', 'cancel']);
@@ -46,7 +47,7 @@ const handleCancel = () => {
 };
 
 // 根据 item.visible 判断是否渲染该控件
-const isItemVisible = (item: any): boolean => {
+const isItemVisible = (item: SettingItem): boolean => {
   if (item.visible === undefined) return true;
   if (typeof item.visible === 'function') return item.visible(localSettings);
   return !!item.visible;
