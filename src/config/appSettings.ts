@@ -28,8 +28,41 @@ export const createDefaultAppConfig = (): AppConfig => {
 
 export const APP_SETTINGS_GROUPS: SettingGroup[] = [
   {
+    id: "runtime",
+    title: "内容输出",
+    colorClass: "text-emerald-400",
+    items: [
+      {
+        id: "generateTree",
+        type: "switch",
+        label: "包含文件树视图",
+        description: "在输出结果的开头生成项目的层级目录树。"
+      },
+      {
+        id: "generateRelationshipText",
+        type: "switch",
+        label: "包含文件关系说明",
+        description: "在输出结果头部生成一段便于 AI 理解的文件依赖关系摘要。"
+      },
+      {
+        id: "highlightPrimaryFiles",
+        type: "switch",
+        label: "重点文件提示",
+        description: "为你直接添加的主要文件插入额外关注标记，提醒 AI 优先理解这些文件。"
+      },
+      {
+        id: "customPrompt",
+        type: "textarea",
+        label: "全局引导提示词 (Prompt)",
+        description: "在生成的上下文头部注入自定义指令，引导 AI 更好地理解代码。",
+        placeholder: "例如：你是资深 Rust 工程师，正在为我审查以下代码...",
+        rows: 3
+      }
+    ]
+  },
+  {
     id: "analysis",
-    title: "解析范围",
+    title: "依赖解析",
     colorClass: "text-blue-400",
     items: [
       {
@@ -136,43 +169,4 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
       },
     ]
   },
-  {
-    id: "runtime",
-    title: "交互与输出",
-    colorClass: "text-emerald-400",
-    items: [
-      {
-        id: "autoGenerate",
-        type: "switch",
-        label: "自动解析",
-        description: "开启后，在上传、移除文件或更改相关设置时会自动更新输出结果。"
-      },
-      {
-        id: "generateTree",
-        type: "switch",
-        label: "包含文件树视图",
-        description: "在输出结果的开头生成项目的层级目录树。"
-      },
-      {
-        id: "generateRelationshipText",
-        type: "switch",
-        label: "包含文件关系说明",
-        description: "在输出结果头部生成一段便于 AI 理解的文件依赖关系摘要。"
-      },
-      {
-        id: "highlightPrimaryFiles",
-        type: "switch",
-        label: "重点文件提示",
-        description: "为你直接添加的主要文件插入额外关注标记，提醒 AI 优先理解这些文件。"
-      },
-      {
-        id: "customPrompt",
-        type: "textarea",
-        label: "全局引导提示词 (Prompt)",
-        description: "在生成的上下文头部注入自定义指令，引导 AI 更好地理解代码。",
-        placeholder: "例如：你是资深 Rust 工程师，正在为我审查以下代码...",
-        rows: 3
-      }
-    ]
-  }
 ];
