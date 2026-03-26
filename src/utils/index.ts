@@ -1,4 +1,6 @@
 // 工具函数
+export const BASE_PATH_SYMBOL = '<BASE_PATH>';
+
 
 /**
  * 标准化路径，处理正反斜杠、大小写转换、前缀消除等
@@ -51,6 +53,14 @@ export const stripDisplayBasePath = (path: string, basePath: string) => {
   }
   return path.slice(basePath.length);
 };
+
+export const replacePathWithSymbol = (path: string, basePath: string, symbol: string = BASE_PATH_SYMBOL) => {
+  if (!basePath || !path.startsWith(basePath)) {
+    return path;
+  }
+  return symbol + path.slice(basePath.length);
+};
+
 
 /**
  * 获取路径的父目录
