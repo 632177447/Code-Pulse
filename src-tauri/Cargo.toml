@@ -32,3 +32,8 @@ swc_common = "19.0.0"
 swc_ecma_ast = "21.0.0"
 swc_ecma_parser = "36.0.0"
 swc_ecma_visit = "21.0.0"
+axum = "0.8.8"
+tokio = { version = "1.50.0", features = ["full"] }
+dashmap = "6.1.0"
+uuid = { version = "1.22.0", features = ["v4"] }
+tower-http = { version = "0.6.8", features = ["cors"] }

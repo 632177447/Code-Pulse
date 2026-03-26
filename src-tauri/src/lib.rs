@@ -1,6 +1,7 @@
 mod analyzer;
 mod minimizer;
 mod cache;
+mod api_server;
 use std::path::{Path};
 use std::fs;
 use std::sync::{Arc};
@@ -55,6 +56,24 @@ fn abort_generate_context(state: tauri::State<'_, AppState>) {
 #[tauri::command]
 fn clear_cache(state: tauri::State<'_, AppState>) {
     state.parse_cache.clear();
+}
+
+#[tauri::command]
+async fn start_api_server(app: tauri::AppHandle, state: tauri::State<'_, api_server::ApiServerState>, port: u16) -> Result<(), String> {
+    api_server::start_server(app, state, port).await
+}
+
+#[tauri::command]
+async fn stop_api_server(state: tauri::State<'_, api_server::ApiServerState>) -> Result<(), String> {
+    api_server::stop_server(state).await
+}
+
+#[tauri::command]
+async fn api_response(state: tauri::State<'_, api_server::ApiServerState>, id: String, response: api_server::ApiResponse) -> Result<(), String> {
+    if let Some((_, tx)) = state.pending_requests.remove(&id) {
+        let _ = tx.send(response);
+    }
+    Ok(())
 }
 
 fn copy_recursively(source: impl AsRef<Path>, destination: impl AsRef<Path>) -> std::io::Result<()> {
@@ -114,6 +133,7 @@ pub fn run() {
             abort_handle: Arc::new(AtomicBool::new(false)),
             parse_cache: Arc::new(cache::FileCache::new()),
         })
+        .manage(api_server::ApiServerState::new())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -122,7 +142,10 @@ pub fn run() {
             generate_context, 
             copy_files_to_dest,
             abort_generate_context,
-            clear_cache
+            clear_cache,
+            start_api_server,
+            stop_api_server,
+            api_response
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
