@@ -1,17 +1,27 @@
-import type { ApiRequest, ApiResponse } from '../types';
+import { z } from 'zod';
+import type { Context } from 'hono';
 
-export const handleGetOutline = async (_req: ApiRequest): Promise<ApiResponse> => {
-  // 占位逻辑，由于具体业务逻辑将由你后续提供，目前先保证返回正确的状态结构即可
-  return {
-    status: 200,
-    body: JSON.stringify({ message: "Outline generation will be implemented soon." })
-  };
+// 定义请求校验 Schema (示例)
+const QuerySchema = z.object({
+  path: z.string().optional(),
+});
+
+export const handleGetOutline = async (c: Context) => {
+  // 使用 Zod 校验查询参数
+  const query = QuerySchema.safeParse(c.req.query());
+  
+  if (!query.success) {
+    return c.json({ error: 'Invalid query parameters', details: query.error.format() }, 400);
+  }
+
+  return c.json({ 
+    message: "Outline generation will be implemented soon.",
+    params: query.data 
+  });
 };
 
-export const handleGetContext = async (_req: ApiRequest): Promise<ApiResponse> => {
-  // 占位逻辑，由于具体业务逻辑将由你后续提供，目前先保证返回正确的状态结构即可
-  return {
-    status: 200,
-    body: JSON.stringify({ message: "Full context generation will be implemented soon." })
-  };
+export const handleGetContext = async (c: Context) => {
+  return c.json({ 
+    message: "Full context generation will be implemented soon." 
+  });
 };

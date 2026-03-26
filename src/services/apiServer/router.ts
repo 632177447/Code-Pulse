@@ -1,49 +1,30 @@
-import type { ApiRequest, ApiResponse, RouteHandler } from './types';
+import { Hono } from 'hono';
+import { handleGetOutline, handleGetContext } from './handlers';
 
-export class ApiRouter {
-  private routes: Map<string, RouteHandler> = new Map();
+// 初始化 Hono 应用
+const app = new Hono();
 
-  // 注册 GET 路由
-  public get(path: string, handler: RouteHandler): void {
-    this.routes.set(`GET:${path}`, handler);
-  }
+// 基础中间件：日志记录（可选）
+app.use('*', async (c, next) => {
+  const start = Date.now();
+  await next();
+  const ms = Date.now() - start;
+  console.log(`[ApiServer] ${c.req.method} ${c.req.url} - ${c.res.status} (${ms}ms)`);
+});
 
-  // 注册 POST 路由
-  public post(path: string, handler: RouteHandler): void {
-    this.routes.set(`POST:${path}`, handler);
-  }
+// 注册路由
+app.get('/api/outline', handleGetOutline);
+app.get('/api/context', handleGetContext);
 
-  // 统一分发和处理到达的 API 请求
-  public async handle(req: ApiRequest): Promise<ApiResponse> {
-    try {
-      // 剔除 URL 中的 Query 字符串，以确保能够精确匹配到注册的路径
-      const path = req.url.split('?')[0];
-      const routeKey = `${req.method.toUpperCase()}:${path}`;
-      const handler = this.routes.get(routeKey);
+// 处理 404
+app.notFound((c) => {
+  return c.json({ error: 'Not Found' }, 404);
+});
 
-      if (!handler) {
-        return {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ error: 'Not Found' })
-        };
-      }
+// 处理错误
+app.onError((err, c) => {
+  console.error('[ApiServer] Error:', err);
+  return c.json({ error: 'Internal Server Error', details: String(err) }, 500);
+});
 
-      const response = await handler(req);
-      
-      // 补充缺失的 Headers，默认视为 JSON 结构
-      if (!response.headers) {
-        response.headers = { 'Content-Type': 'application/json' };
-      }
-      
-      return response;
-    } catch (error) {
-      console.error('[ApiRouter] Error handling request:', error);
-      return {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Internal Server Error', details: String(error) })
-      };
-    }
-  }
-}
+export { app as apiRouter };

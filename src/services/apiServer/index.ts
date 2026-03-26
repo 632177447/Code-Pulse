@@ -1,24 +1,13 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { ApiRouter } from './router';
-import { handleGetOutline, handleGetContext } from './handlers';
-import type { ApiRequest } from './types';
+import { apiRouter } from './router';
+import type { ApiRequest, ApiResponse } from './types';
 
 class ApiServerManager {
-  private router: ApiRouter;
   private unlistenRequestEvent: UnlistenFn | null = null;
   private isRunning: boolean = false;
 
-  constructor() {
-    this.router = new ApiRouter();
-    this.registerRoutes();
-  }
-
-  // 集中维护所有暴露外部的路由路径
-  private registerRoutes(): void {
-    this.router.get('/api/outline', handleGetOutline);
-    this.router.get('/api/context', handleGetContext);
-  }
+  constructor() {}
 
   // 根据当前最新的全局设置，决定如何重启或停止 API Server 
   public async syncState(apiEnabled: boolean, apiPort: number): Promise<void> {
@@ -31,21 +20,17 @@ class ApiServerManager {
 
   // 触发 Rust 端的监听器启动事件，并挂载 Webview 请求响应处理器
   public async start(port: number): Promise<void> {
-    // 强制先清理并关闭，以确保如果端口变更能正常重启
     if (this.isRunning) {
       await this.stop();
     }
 
     try {
-      // 开启后端 HTTPServer 监听指定端口
       await invoke('start_api_server', { port });
       
-      // 接受由 Rust 传递过来的真实 HTTP HttpRequest 封装数据
       this.unlistenRequestEvent = await listen<ApiRequest>('api-request', async (event) => {
         const req = event.payload;
-        const response = await this.router.handle(req);
+        const response = await this.dispatchToHono(req);
         
-        // 带着匹配的请求 Id 把处理结果原路丢回 Rust，供它回复给该请求
         await invoke('api_response', { id: req.id, response });
       });
 
@@ -53,6 +38,44 @@ class ApiServerManager {
       console.log(`[ApiServerManager] Service successfully bound to port ${port}`);
     } catch (error) {
       console.error('[ApiServerManager] Failed to start service on rust backend:', error);
+    }
+  }
+
+  /**
+   * 将自定义的 ApiRequest 适配并转发给 Hono 处理
+   */
+  private async dispatchToHono(req: ApiRequest): Promise<ApiResponse> {
+    try {
+      // 构造标准 Request 对象。使用 http://localhost 作为基准域
+      const url = req.url.startsWith('http') ? req.url : `http://localhost${req.url}`;
+      
+      const standardReq = new Request(url, {
+        method: req.method,
+        headers: req.headers,
+        body: (req.method !== 'GET' && req.method !== 'HEAD') ? req.body : undefined
+      });
+
+      // 调用 Hono 应用
+      const res = await apiRouter.fetch(standardReq);
+
+      // 将标准 Response 转换回 ApiResponse
+      const body = await res.text();
+      const headers: Record<string, string> = {};
+      res.headers.forEach((value, key) => {
+        headers[key] = value;
+      });
+
+      return {
+        status: res.status,
+        headers,
+        body
+      };
+    } catch (error) {
+      console.error('[ApiServerManager] Adapter Error:', error);
+      return {
+        status: 500,
+        body: JSON.stringify({ error: 'Adapter Error', details: String(error) })
+      };
     }
   }
 
