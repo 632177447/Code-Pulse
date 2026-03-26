@@ -6,6 +6,7 @@ export interface SettingItemBase {
   label?: string;
   description?: string;
   visible?: boolean | ((settings: any) => boolean);
+  defaultValue?: any;
 }
 
 export interface SliderSettingItem extends SettingItemBase {
