@@ -12,5 +12,3 @@ export interface ApiResponse {
   headers?: Record<string, string>;
   body: string;
 }
-
-export type RouteHandler = (req: ApiRequest) => Promise<ApiResponse> | ApiResponse;
