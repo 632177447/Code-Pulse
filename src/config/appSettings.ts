@@ -1,31 +1,7 @@
 import type { AppConfig, SettingGroup } from "../types";
+import { extractDefaultSettings } from "../components/common/SettingsModal/utils";
 
 export const APP_CONFIG_STORAGE_KEY = "appConfig";
-
-export const DEFAULT_APP_CONFIG: AppConfig = {
-  maxDepth: 2,
-  includedTypes: ["vue", "ts", "tsx", "js", "py", "json", "css", "scss"],
-  ignoreExts: ".git, node_modules, dist, target, build, .vscode, .idea, .next, .nuxt, .output, .vercel, .github, __pycache__, .venv, bin, obj, *.lock, *.log, *.tmp, *.temp, *.png, *.jpg, *.jpeg, *.gif, *.svg, *.ico, *.webp, *.mp4, *.avi, *.mkv, *.mov, *.webm, *.mp3, *.wav, *.flac, *.aac, *.ogg, *.zip, *.tar, *.gz, *.7z, *.rar, *.exe, *.dll, *.so, *.dylib",
-  ignoreDeepParse: "package.json, tsconfig.json, vite.config.ts, tauri.conf.json, README.md, Cargo.toml, go.mod, pom.xml, .env, *.test.ts, *.spec.ts",
-  customPrompt: "",
-  generateTree: true,
-  generateRelationshipText: true,
-  highlightPrimaryFiles: true,
-  optimizePathDisplay: false,
-  autoGenerate: true,
-  customIncludedTypes: "",
-  projectRoots: "",
-  enableMinimization: true,
-  minimizationThreshold: 8000,
-  minimizationDepthThreshold: 2,
-};
-
-export const createDefaultAppConfig = (): AppConfig => {
-  return {
-    ...DEFAULT_APP_CONFIG,
-    includedTypes: [...DEFAULT_APP_CONFIG.includedTypes]
-  };
-};
 
 export const APP_SETTINGS_GROUPS: SettingGroup[] = [
   {
@@ -34,28 +10,39 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
     colorClass: "text-emerald-400",
     items: [
       {
+        id: "autoGenerate",
+        type: "switch",
+        label: "自动生成",
+        description: "当文件列表发生变化时，是否自动触发上下文生成。",
+        defaultValue: true,
+      },
+      {
         id: "generateTree",
         type: "switch",
         label: "包含文件树视图",
-        description: "在输出结果的开头生成项目的层级目录树。"
+        description: "在输出结果的开头生成项目的层级目录树。",
+        defaultValue: true
       },
       {
         id: "generateRelationshipText",
         type: "switch",
         label: "包含文件关系说明",
-        description: "在输出结果头部生成一段便于 AI 理解的文件依赖关系摘要。"
+        description: "在输出结果头部生成一段便于 AI 理解的文件依赖关系摘要。",
+        defaultValue: true
       },
       {
         id: "highlightPrimaryFiles",
         type: "switch",
         label: "重点文件提示",
-        description: "为你直接添加的主要文件插入额外关注标记，提醒 AI 优先理解这些文件。"
+        description: "为你直接添加的主要文件插入额外关注标记，提醒 AI 优先理解这些文件。",
+        defaultValue: true
       },
       {
         id: "optimizePathDisplay",
         type: "switch",
         label: "优化路径显示",
-        description: "提取公共基础路径，在文件树顶部单独展示，并在完整输出结果中移除重复路径前缀。"
+        description: "提取公共基础路径，在文件树顶部单独展示，并在完整输出结果中移除重复路径前缀。",
+        defaultValue: false
       },
       {
         id: "customPrompt",
@@ -63,7 +50,8 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         label: "全局引导提示词 (Prompt)",
         description: "在生成的上下文头部注入自定义指令，引导 AI 更好地理解代码。",
         placeholder: "例如：你是资深 Rust 工程师，正在为我审查以下代码...",
-        rows: 3
+        rows: 3,
+        defaultValue: ""
       }
     ]
   },
@@ -78,7 +66,8 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         label: "递归解析深度",
         description: "设置文件解析依赖扫描的层级数。层级越高，包含的相关文件越多。",
         min: 0,
-        max: 10
+        max: 10,
+        defaultValue: 2
       },
       {
         id: "includedTypes",
@@ -110,14 +99,16 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
           { label: ".css", value: "css" },
           { label: ".scss", value: "scss" },
           { label: ".less", value: "less" }
-        ]
+        ],
+        defaultValue: ["vue", "ts", "tsx", "js", "py", "json", "css", "scss"]
       },
       {
         id: "customIncludedTypes",
         type: "input",
         label: "自定义后缀名",
         description: "在此输入其他自定义后缀名，按逗号分隔（如: sh, yaml, xml），自定义后缀名的文件会输出到结果中，但不会解析依赖。",
-        placeholder: "sh, yaml, xml"
+        placeholder: "sh, yaml, xml",
+        defaultValue: ""
       },
       {
         id: "projectRoots",
@@ -125,7 +116,8 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         label: "自定义项目根目录",
         description: "为空表示自动匹配。可以用逗号或换行分隔多个路径。若手动指定的根目录都不匹配，则回退到自动匹配逻辑。",
         placeholder: "D:/Projects/my-app, D:/Projects/common-lib",
-        rows: 2
+        rows: 2,
+        defaultValue: ""
       },
     ]
   },
@@ -138,7 +130,8 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         id: "enableMinimization",
         type: "switch",
         label: "上下文压缩",
-        description: "自动移除间接引用文件的函数实现，仅保留定义，大幅节省上下文空间。"
+        description: "自动移除间接引用文件的函数实现，仅保留定义，大幅节省上下文空间。",
+        defaultValue: true
       },
       {
         id: "minimizationThreshold",
@@ -147,7 +140,8 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         label: "压缩触发阈值",
         description: "当生成内容达到该阈值(字符数)时，自动触发深度压缩以节省上下文空间。",
         step: 1000,
-        visible: (settings: any) => settings.enableMinimization === true
+        visible: (settings: any) => settings.enableMinimization === true,
+        defaultValue: 8000
       },
       {
         id: "minimizationDepthThreshold",
@@ -156,7 +150,8 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         description: "大于等于该层级的依赖文件将会被压缩。默认为 2。",
         min: 0,
         max: 5,
-        visible: (settings: any) => settings.enableMinimization === true
+        visible: (settings: any) => settings.enableMinimization === true,
+        defaultValue: 2
       },
       {
         id: "ignoreExts",
@@ -164,7 +159,8 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         label: "全局忽略项",
         description: "忽略指定的后缀或目录（支持 * 通配符）。通常用于排除依赖库或构建产物。",
         placeholder: ".git, node_modules, dist, target, build",
-        rows: 3
+        rows: 3,
+        defaultValue: ".git, node_modules, dist, target, build, .vscode, .idea, .next, .nuxt, .output, .vercel, .github, __pycache__, .venv, bin, obj, *.lock, *.log, *.tmp, *.temp, *.png, *.jpg, *.jpeg, *.gif, *.svg, *.ico, *.webp, *.mp4, *.avi, *.mkv, *.mov, *.webm, *.mp3, *.wav, *.flac, *.aac, *.ogg, *.zip, *.tar, *.gz, *.7z, *.rar, *.exe, *.dll, *.so, *.dylib"
       },
       {
         id: "ignoreDeepParse",
@@ -172,8 +168,18 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         label: "跳过深层解析",
         description: "匹配到的文件将包含内容，但不继续追踪其内部依赖（如配置文件、测试文件）。",
         placeholder: "package.json, tsconfig.json, vite.config.ts, README.md, *.test.ts",
-        rows: 3
+        rows: 3,
+        defaultValue: "package.json, tsconfig.json, vite.config.ts, tauri.conf.json, README.md, Cargo.toml, go.mod, pom.xml, .env, *.test.ts, *.spec.ts"
       },
     ]
   },
 ];
+
+export const DEFAULT_APP_CONFIG: AppConfig = extractDefaultSettings(APP_SETTINGS_GROUPS) as AppConfig;
+
+export const createDefaultAppConfig = (): AppConfig => {
+  return {
+    ...DEFAULT_APP_CONFIG,
+    includedTypes: [...DEFAULT_APP_CONFIG.includedTypes]
+  };
+};
