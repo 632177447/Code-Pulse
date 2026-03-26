@@ -116,7 +116,7 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         id: "customIncludedTypes",
         type: "input",
         label: "自定义后缀名",
-        description: "在此输入其他自定义后缀名，按逗号分隔（如: sh, yaml, xml）。",
+        description: "在此输入其他自定义后缀名，按逗号分隔（如: sh, yaml, xml），自定义后缀名的文件会输出到结果中，但不会解析依赖。",
         placeholder: "sh, yaml, xml"
       },
       {
@@ -153,7 +153,7 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         id: "minimizationDepthThreshold",
         type: "slider",
         label: "压缩触发层级",
-        description: "只有大于等于该层级的依赖文件才会被压缩。默认为 2。",
+        description: "大于等于该层级的依赖文件将会被压缩。默认为 2。",
         min: 0,
         max: 5,
         visible: (settings: any) => settings.enableMinimization === true
