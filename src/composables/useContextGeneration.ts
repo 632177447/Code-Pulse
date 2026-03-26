@@ -71,6 +71,7 @@ export function useContextGeneration({ appConfig, filesList, userPrompt }: UseCo
     return JSON.stringify({
       customPrompt: appConfig.customPrompt,
       generateTree: appConfig.generateTree,
+      generateRelationshipText: appConfig.generateRelationshipText,
       highlightPrimaryFiles: appConfig.highlightPrimaryFiles
     });
   });
@@ -124,7 +125,7 @@ export function useContextGeneration({ appConfig, filesList, userPrompt }: UseCo
     isLoading.value = true;
 
     try {
-      const result = await invoke<Array<{ path: string; content: string; abs_path: string }>>("generate_context", {
+      const result = await invoke<Array<{ path: string; content: string; abs_path: string; depth: number; dependencies: string[] }>>("generate_context", {
         paths: paths,
         maxDepth: appConfig.maxDepth,
         generateTree: appConfig.generateTree,
@@ -176,9 +177,12 @@ export function useContextGeneration({ appConfig, filesList, userPrompt }: UseCo
       fileNodes: fileNodes.value.map(node => ({
         path: node.path,
         content: node.content,
+        depth: node.depth,
+        dependencies: [...node.dependencies],
         isPrimary: Boolean(node.originId)
       })),
       generateTree: appConfig.generateTree,
+      generateRelationshipText: appConfig.generateRelationshipText,
       highlightPrimaryFiles: appConfig.highlightPrimaryFiles,
       customPrompt: appConfig.customPrompt,
       userPrompt: userPrompt.value,
