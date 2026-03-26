@@ -45,36 +45,35 @@ class ApiServerManager {
    * 将自定义的 ApiRequest 适配并转发给 Hono 处理
    */
   private async dispatchToHono(req: ApiRequest): Promise<ApiResponse> {
+    const startTime = Date.now();
+    console.log(`[ApiServerManager] [${req.id}] incoming ${req.method} ${req.url}`);
+    
     try {
-      // 构造标准 Request 对象。使用 http://localhost 作为基准域
-      const url = req.url.startsWith('http') ? req.url : `http://localhost${req.url}`;
-      
-      const standardReq = new Request(url, {
+      const res = await apiRouter.request(req.url, {
         method: req.method,
         headers: req.headers,
         body: (req.method !== 'GET' && req.method !== 'HEAD') ? req.body : undefined
       });
 
-      // 调用 Hono 应用
-      const res = await apiRouter.fetch(standardReq);
+      console.log(`[ApiServerManager] [${req.id}] hono status: ${res.status}`);
 
-      // 将标准 Response 转换回 ApiResponse
       const body = await res.text();
       const headers: Record<string, string> = {};
       res.headers.forEach((value, key) => {
         headers[key] = value;
       });
 
+      console.log(`[ApiServerManager] [${req.id}] dispatch finished in ${Date.now() - startTime}ms`);
       return {
         status: res.status,
         headers,
         body
       };
     } catch (error) {
-      console.error('[ApiServerManager] Adapter Error:', error);
+      console.error(`[ApiServerManager] [${req.id}] dispatch error:`, error);
       return {
         status: 500,
-        body: JSON.stringify({ error: 'Adapter Error', details: String(error) })
+        body: JSON.stringify({ error: 'Internal Adapter Error', details: String(error) })
       };
     }
   }
