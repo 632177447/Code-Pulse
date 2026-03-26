@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import DependencyTreeSidebar from "../file-tree/DependencyTreeSidebar.vue";
-import { getDisplayBasePath, stripDisplayBasePath } from "../../utils";
+import { getDisplayBasePath, replacePathWithSymbol } from "../../utils";
 
 const props = defineProps<{
   fileNodes: {path: string, content: string, abs_path: string, originId?: string}[];
@@ -56,7 +56,9 @@ function clearOutputShadow() {
 async function handleNodeSelect(fullPath: string) {
   if (props.isLoading || !props.outputContext) return;
 
-  const anchorPath = stripDisplayBasePath(fullPath, displayBasePath.value);
+  const anchorPath = props.optimizePathDisplay 
+    ? replacePathWithSymbol(fullPath, displayBasePath.value)
+    : fullPath;
   const anchor = `[FILE PATH]: ${anchorPath}`;
   const anchorIndex = props.outputContext.indexOf(anchor);
   if (anchorIndex === -1) return;

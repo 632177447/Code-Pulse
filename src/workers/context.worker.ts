@@ -1,4 +1,4 @@
-import { getDisplayBasePath, stripDisplayBasePath } from "../utils";
+import { BASE_PATH_SYMBOL, getDisplayBasePath, replacePathWithSymbol } from "../utils";
 
 export interface WorkerInput {
   requestId?: number;
@@ -18,7 +18,7 @@ function buildTreeText(paths: string[], basePath: string) {
   let tree = '========================================\n[FILE TREE]\n========================================\n';
 
   if (basePath) {
-    tree += `[BASE PATH]: ${basePath}\n`;
+    tree += `[BASE PATH]: ${BASE_PATH_SYMBOL} maps to ${basePath}\n`;
   }
 
   tree += '.\n';
@@ -42,25 +42,6 @@ function buildTreeText(paths: string[], basePath: string) {
   return tree + '\n';
 }
 
-function buildDisplayContent(content: string, basePath: string) {
-  if (!basePath) {
-    return content;
-  }
-
-  const filePathPrefix = '[FILE PATH]: ';
-  const lineEndIndex = content.indexOf('\n');
-  if (!content.startsWith(filePathPrefix) || lineEndIndex === -1) {
-    return content;
-  }
-
-  const fullPath = content.slice(filePathPrefix.length, lineEndIndex);
-  const displayPath = stripDisplayBasePath(fullPath, basePath);
-  if (displayPath === fullPath) {
-    return content;
-  }
-
-  return `${filePathPrefix}${displayPath}${content.slice(lineEndIndex)}`;
-}
 
 function buildRelationshipText(fileNodes: WorkerInput["fileNodes"]) {
   if (fileNodes.length === 0) {
@@ -130,8 +111,8 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
   const displayFileNodes: WorkerFileNode[] = basePath
     ? fileNodes.map(node => ({
         ...node,
-        path: stripDisplayBasePath(node.path, basePath),
-        dependencies: node.dependencies.map(dependency => stripDisplayBasePath(dependency, basePath))
+        path: replacePathWithSymbol(node.path, basePath),
+        dependencies: node.dependencies.map(dependency => replacePathWithSymbol(dependency, basePath))
       }))
     : fileNodes;
 
@@ -139,6 +120,12 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
 
   if (generateTree) {
     finalContext += buildTreeText(displayFileNodes.map(node => node.path), basePath);
+  } else if (basePath) {
+    // 如果没有显示文件树, 则需要单独再添加一个基础路径的说明
+    finalContext += '========================================\n';
+    finalContext += '[BASE PATH]\n';
+    finalContext += '========================================\n';
+    finalContext += `All paths starting with "${BASE_PATH_SYMBOL}" are relative to: ${basePath}\n\n`;
   }
 
   if (generateRelationshipText) {
@@ -155,7 +142,23 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
   const PENDING_USER_PROMPT = userPrompt.trim();
   // 使用数组 join 代替逐次 += 以减少中间字符串对象的生成
   const blocksContent = fileNodes.map(n => {
-    const displayContent = buildDisplayContent(n.content, basePath);
+    let displayContent = n.content;
+
+    if (basePath) {
+      const filePathPrefix = '[FILE PATH]: ';
+      const prefixIndex = n.content.indexOf(filePathPrefix);
+      if (prefixIndex !== -1) {
+        const lineContentStart = prefixIndex + filePathPrefix.length;
+        const lineEndIndex = n.content.indexOf('\n', lineContentStart);
+        if (lineEndIndex !== -1) {
+          const fullPath = n.content.slice(lineContentStart, lineEndIndex).trim();
+          const displayPath = replacePathWithSymbol(fullPath, basePath);
+          if (displayPath !== fullPath) {
+            displayContent = n.content.slice(0, lineContentStart) + displayPath + n.content.slice(lineEndIndex);
+          }
+        }
+      }
+    }
 
     if (!highlightPrimaryFiles || !n.isPrimary) {
       return displayContent;
