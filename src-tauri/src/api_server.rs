@@ -64,7 +64,7 @@ pub async fn start_server(app: AppHandle, state: tauri::State<'_, ApiServerState
     let pending_for_root = pending_requests.clone();
 
     let router = Router::new()
-        .route("/*path", any(move |req: Request| async move { handle_request(app_for_path, pending_for_path, req).await }))
+        .route("/{*path}", any(move |req: Request| async move { handle_request(app_for_path, pending_for_path, req).await }))
         .route("/", any(move |req: Request| async move { handle_request(app_for_root, pending_for_root, req).await }));
 
     use tower_http::cors::CorsLayer;
