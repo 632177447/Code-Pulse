@@ -23,7 +23,7 @@ const sidebarWidth = ref(320);
 const isResizingSidebar = ref(false);
 let sidebarResizeStartX = 0;
 let sidebarResizeStartWidth = 0;
-const SIDEBAR_MIN_WIDTH = 260;
+const SIDEBAR_MIN_WIDTH = 220;
 const SIDEBAR_MAX_WIDTH = 520;
 
 const appConfig = reactive(createDefaultAppConfig());
