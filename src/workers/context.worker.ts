@@ -1,12 +1,65 @@
+import { getDisplayBasePath, stripDisplayBasePath } from "../utils";
+
 export interface WorkerInput {
   requestId?: number;
   fileNodes: { path: string; content: string; depth: number; dependencies: string[]; isPrimary?: boolean }[];
   generateTree: boolean;
   generateRelationshipText: boolean;
   highlightPrimaryFiles?: boolean;
+  optimizePathDisplay?: boolean;
   customPrompt: string;
   userPrompt: string;
   longContextThreshold: number;
+}
+
+type WorkerFileNode = WorkerInput["fileNodes"][number];
+
+function buildTreeText(paths: string[], basePath: string) {
+  let tree = '========================================\n[FILE TREE]\n========================================\n';
+
+  if (basePath) {
+    tree += `[BASE PATH]: ${basePath}\n`;
+  }
+
+  tree += '.\n';
+  const sortedPaths = [...paths].sort();
+  let prevComponents: string[] = [];
+
+  for (const path of sortedPaths) {
+    const components = path.split('/');
+    let i = 0;
+    while (i < components.length && i < prevComponents.length && components[i] === prevComponents[i]) {
+      i++;
+    }
+    while (i < components.length) {
+      const indent = '│   '.repeat(i);
+      tree += `${indent}├── ${components[i]}\n`;
+      i++;
+    }
+    prevComponents = components;
+  }
+
+  return tree + '\n';
+}
+
+function buildDisplayContent(content: string, basePath: string) {
+  if (!basePath) {
+    return content;
+  }
+
+  const filePathPrefix = '[FILE PATH]: ';
+  const lineEndIndex = content.indexOf('\n');
+  if (!content.startsWith(filePathPrefix) || lineEndIndex === -1) {
+    return content;
+  }
+
+  const fullPath = content.slice(filePathPrefix.length, lineEndIndex);
+  const displayPath = stripDisplayBasePath(fullPath, basePath);
+  if (displayPath === fullPath) {
+    return content;
+  }
+
+  return `${filePathPrefix}${displayPath}${content.slice(lineEndIndex)}`;
 }
 
 function buildRelationshipText(fileNodes: WorkerInput["fileNodes"]) {
@@ -66,38 +119,30 @@ function buildRelationshipText(fileNodes: WorkerInput["fileNodes"]) {
 
 // 所有耗时的字符串拼接全部在 Worker 线程执行，主线程不受影响
 self.onmessage = (e: MessageEvent<WorkerInput>) => {
-  const { requestId, fileNodes, generateTree, generateRelationshipText, highlightPrimaryFiles, customPrompt, userPrompt, longContextThreshold } = e.data;
+  const { requestId, fileNodes, generateTree, generateRelationshipText, highlightPrimaryFiles, optimizePathDisplay, customPrompt, userPrompt, longContextThreshold } = e.data;
 
   if (fileNodes.length === 0) {
     self.postMessage({ requestId, content: '' });
     return;
   }
 
+  const basePath = optimizePathDisplay ? getDisplayBasePath(fileNodes.map(node => node.path)) : "";
+  const displayFileNodes: WorkerFileNode[] = basePath
+    ? fileNodes.map(node => ({
+        ...node,
+        path: stripDisplayBasePath(node.path, basePath),
+        dependencies: node.dependencies.map(dependency => stripDisplayBasePath(dependency, basePath))
+      }))
+    : fileNodes;
+
   let finalContext = '';
 
   if (generateTree) {
-    const paths = fileNodes.map(n => n.path);
-    let tree = '========================================\n[FILE TREE]\n========================================\n.\n';
-    const sortedPaths = [...paths].sort();
-    let prevComponents: string[] = [];
-    for (const path of sortedPaths) {
-      const components = path.split('/');
-      let i = 0;
-      while (i < components.length && i < prevComponents.length && components[i] === prevComponents[i]) {
-        i++;
-      }
-      while (i < components.length) {
-        const indent = '│   '.repeat(i);
-        tree += `${indent}├── ${components[i]}\n`;
-        i++;
-      }
-      prevComponents = components;
-    }
-    finalContext += tree + '\n';
+    finalContext += buildTreeText(displayFileNodes.map(node => node.path), basePath);
   }
 
   if (generateRelationshipText) {
-    finalContext += buildRelationshipText(fileNodes);
+    finalContext += buildRelationshipText(displayFileNodes);
   }
 
   if (customPrompt.trim()) {
@@ -110,15 +155,17 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
   const PENDING_USER_PROMPT = userPrompt.trim();
   // 使用数组 join 代替逐次 += 以减少中间字符串对象的生成
   const blocksContent = fileNodes.map(n => {
+    const displayContent = buildDisplayContent(n.content, basePath);
+
     if (!highlightPrimaryFiles || !n.isPrimary) {
-      return n.content;
+      return displayContent;
     }
     return [
       '========================================',
       '[PRIMARY FILE]',
       'This file was directly selected by the user. Use it as the primary reference for this task.',
       '========================================',
-      n.content
+      displayContent
     ].join('\n');
   }).join('\n\n');
 
@@ -137,6 +184,5 @@ self.onmessage = (e: MessageEvent<WorkerInput>) => {
     finalContext += '========================================\n';
     finalContext += PENDING_USER_PROMPT;
   }
-
   self.postMessage({ requestId, content: finalContext });
 };

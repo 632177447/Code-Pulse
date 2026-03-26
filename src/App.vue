@@ -149,6 +149,7 @@ function stopResizeSidebar() {
       :isEditing="isEditing"
       :isLoading="isLoading"
       :enableMinimization="appConfig.enableMinimization"
+      :optimizePathDisplay="appConfig.optimizePathDisplay"
       @delete="(fp, ap, ids) => handleNodeDelete(fp, ap, ids)"
       @toggle-edit="toggleEdit"
       @copy-output="copyToClipboardAll"

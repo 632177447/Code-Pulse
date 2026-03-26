@@ -11,6 +11,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   generateTree: true,
   generateRelationshipText: true,
   highlightPrimaryFiles: true,
+  optimizePathDisplay: false,
   autoGenerate: true,
   customIncludedTypes: "",
   projectRoots: "",
@@ -49,6 +50,12 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         type: "switch",
         label: "重点文件提示",
         description: "为你直接添加的主要文件插入额外关注标记，提醒 AI 优先理解这些文件。"
+      },
+      {
+        id: "optimizePathDisplay",
+        type: "switch",
+        label: "优化路径显示",
+        description: "提取公共基础路径，在文件树顶部单独展示，并在完整输出结果中移除重复路径前缀。"
       },
       {
         id: "customPrompt",

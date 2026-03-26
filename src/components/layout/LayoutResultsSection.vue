@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import DependencyTreeSidebar from "../file-tree/DependencyTreeSidebar.vue";
+import { getDisplayBasePath, stripDisplayBasePath } from "../../utils";
 
 const props = defineProps<{
   fileNodes: {path: string, content: string, abs_path: string, originId?: string}[];
@@ -10,6 +11,7 @@ const props = defineProps<{
   isEditing: boolean;
   isLoading: boolean;
   enableMinimization: boolean;
+  optimizePathDisplay: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -29,6 +31,12 @@ const outputContextModel = computed({
 const outputAreaRef = ref<HTMLTextAreaElement | null>(null);
 const outputShadowMarkerRef = ref<HTMLSpanElement | null>(null);
 const outputShadowState = ref<{ beforeText: string; afterText: string } | null>(null);
+const displayBasePath = computed(() => {
+  if (!props.optimizePathDisplay) {
+    return "";
+  }
+  return getDisplayBasePath(props.fileNodes.map(node => node.path));
+});
 
 watch(() => props.isEditing, async (isEditing) => {
   if (!isEditing) return;
@@ -48,7 +56,8 @@ function clearOutputShadow() {
 async function handleNodeSelect(fullPath: string) {
   if (props.isLoading || !props.outputContext) return;
 
-  const anchor = `[FILE PATH]: ${fullPath}`;
+  const anchorPath = stripDisplayBasePath(fullPath, displayBasePath.value);
+  const anchor = `[FILE PATH]: ${anchorPath}`;
   const anchorIndex = props.outputContext.indexOf(anchor);
   if (anchorIndex === -1) return;
 

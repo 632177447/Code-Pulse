@@ -46,6 +46,7 @@ export interface AppConfig {
   generateTree: boolean;
   generateRelationshipText: boolean;
   highlightPrimaryFiles: boolean;
+  optimizePathDisplay: boolean;
   autoGenerate: boolean;
   customIncludedTypes: string;
   projectRoots: string;

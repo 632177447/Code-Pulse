@@ -14,6 +14,44 @@ export const normalizePath = (p: string) => {
           .replace(/\/+$/, '');
 };
 
+export const getDisplayBasePath = (paths: string[]) => {
+  const normalizedPaths = paths
+    .map(path => path.replace(/\\/g, '/').trim().replace(/\/+$/, ''))
+    .filter(path => path.length > 0);
+
+  if (normalizedPaths.length === 0) {
+    return '';
+  }
+
+  const directorySegmentsList = normalizedPaths.map(path => path.split('/').filter(Boolean).slice(0, -1));
+  let sharedCount = directorySegmentsList[0].length;
+
+  for (let i = 1; i < directorySegmentsList.length; i++) {
+    sharedCount = Math.min(sharedCount, directorySegmentsList[i].length);
+    let cursor = 0;
+    while (cursor < sharedCount && directorySegmentsList[0][cursor] === directorySegmentsList[i][cursor]) {
+      cursor++;
+    }
+    sharedCount = cursor;
+    if (sharedCount === 0) {
+      break;
+    }
+  }
+
+  if (sharedCount <= 1) {
+    return '';
+  }
+
+  return directorySegmentsList[0].slice(0, sharedCount - 1).join('/') + '/';
+};
+
+export const stripDisplayBasePath = (path: string, basePath: string) => {
+  if (!basePath || !path.startsWith(basePath)) {
+    return path;
+  }
+  return path.slice(basePath.length);
+};
+
 /**
  * 获取路径的父目录
  * @param p 路径字符串
