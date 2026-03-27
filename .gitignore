@@ -30,3 +30,5 @@ src-tauri/target
 *.key.pub
 mock-server/latest.json
 mock-server/*.msi
+
+AGENTS.md
