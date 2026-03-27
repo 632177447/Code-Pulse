@@ -1,19 +1,16 @@
 import type { Context } from 'hono';
+import { CodeService } from '../core/code.service';
 
 /**
- * 健康检查
+ * 前端引擎健康检查
  */
 export const handleHealthCheck = async (c: Context) => {
-  return c.json({ status: 'ok', timestamp: new Date().toISOString() });
+  return c.json(CodeService.getHealth());
 };
 
 /**
- * 获取服务信息
+ * 获取前端引擎服务信息
  */
 export const handleGetInfo = async (c: Context) => {
-  return c.json({
-    name: 'CodePulse API Service',
-    version: '1.0.0',
-    description: 'Local code analysis and context service'
-  });
+  return c.json(CodeService.getInfo());
 };
