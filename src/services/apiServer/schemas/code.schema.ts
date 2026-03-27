@@ -42,7 +42,7 @@ const QueryBooleanSchema = z.preprocess((value) => {
 const FileNodeSchema = z.object({
   path: z.string(),
   content: z.string(),
-  abs_path: z.string(),
+  absPath: z.string(),
   depth: z.number().int().min(0),
   dependencies: z.array(z.string()),
   originId: z.string().optional()

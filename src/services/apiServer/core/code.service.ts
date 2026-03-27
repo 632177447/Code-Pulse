@@ -131,7 +131,7 @@ async function generateFileNodes(request: ContextRequest) {
 function toOutline(nodes: FileNode[]): OutlineNode[] {
   return nodes.map(node => ({
     path: node.path,
-    abs_path: node.abs_path,
+    absPath: node.absPath,
     depth: node.depth,
     dependencies: [...node.dependencies]
   }));
@@ -141,18 +141,24 @@ export const CodeService = {
   getHealth() {
     return {
       status: 'ok',
-      engine: FRONTEND_ENGINE,
-      timestamp: Math.floor(Date.now() / 1000).toString()
+      meta: {
+        engine: FRONTEND_ENGINE,
+        timestamp: Math.floor(Date.now() / 1000).toString()
+      }
     };
   },
 
   getInfo() {
     return {
-      name: 'CodePulse Frontend API Service',
-      version: pkg.version,
-      description: 'Frontend-powered context rendering and analysis gateway',
-      engine: FRONTEND_ENGINE,
-      routes: FRONTEND_API_ROUTES
+      data: {
+        name: 'CodePulse Frontend API Service',
+        version: pkg.version,
+        description: 'Frontend-powered context rendering and analysis gateway',
+        routes: FRONTEND_API_ROUTES
+      },
+      meta: {
+        engine: FRONTEND_ENGINE
+      }
     };
   },
 
@@ -161,7 +167,9 @@ export const CodeService = {
 
     return {
       status: 'ok',
-      engine: FRONTEND_ENGINE
+      meta: {
+        engine: FRONTEND_ENGINE
+      }
     };
   },
 
@@ -170,7 +178,9 @@ export const CodeService = {
 
     return {
       status: 'aborting',
-      engine: FRONTEND_ENGINE
+      meta: {
+        engine: FRONTEND_ENGINE
+      }
     };
   },
 
@@ -179,10 +189,11 @@ export const CodeService = {
     const nodes = await generateFileNodes(request);
 
     return {
-      status: 'ok',
-      engine: FRONTEND_ENGINE,
-      count: nodes.length,
-      data: nodes
+      data: nodes,
+      meta: {
+        count: nodes.length,
+        engine: FRONTEND_ENGINE
+      }
     };
   },
 
@@ -191,10 +202,11 @@ export const CodeService = {
     const outline = toOutline(await generateFileNodes(request));
 
     return {
-      status: 'ok',
-      engine: FRONTEND_ENGINE,
-      count: outline.length,
-      data: outline
+      data: outline,
+      meta: {
+        count: outline.length,
+        engine: FRONTEND_ENGINE
+      }
     };
   },
 
@@ -205,11 +217,12 @@ export const CodeService = {
     const text = formatContextContent(createRenderableContextNodes(nodes, request.paths), formatOptions);
 
     return {
-      status: 'ok',
-      engine: FRONTEND_ENGINE,
-      count: nodes.length,
-      length: text.length,
-      text
+      text,
+      meta: {
+        count: nodes.length,
+        length: text.length,
+        engine: FRONTEND_ENGINE
+      }
     };
   },
 
@@ -219,11 +232,12 @@ export const CodeService = {
     const text = formatContextContent(createRenderableContextNodes(input.fileNodes, selectedPaths), formatOptions);
 
     return {
-      status: 'ok',
-      engine: FRONTEND_ENGINE,
-      count: input.fileNodes.length,
-      length: text.length,
-      text
+      text,
+      meta: {
+        count: input.fileNodes.length,
+        length: text.length,
+        engine: FRONTEND_ENGINE
+      }
     };
   }
 };

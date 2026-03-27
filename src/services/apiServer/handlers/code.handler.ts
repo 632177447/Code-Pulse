@@ -11,16 +11,20 @@ import {
 
 function createSchemaErrorResponse(c: Context, error: ZodError) {
   return c.json({
-    error: 'Invalid request parameters',
-    details: error.format()
+    error: {
+      message: 'Invalid request parameters',
+      details: error.format()
+    }
   }, 400);
 }
 
 function createServiceErrorResponse(c: Context, error: unknown) {
   if (error instanceof ApiValidationError) {
     return c.json({
-      error: error.message,
-      details: error.details
+      error: {
+        message: error.message,
+        details: error.details
+      }
     }, 400);
   }
 
@@ -40,8 +44,10 @@ async function parseJsonBody<T>(c: Context, schema: ZodType<T>) {
   } catch (error) {
     return {
       response: c.json({
-        error: 'Invalid JSON body',
-        details: String(error)
+        error: {
+          message: 'Invalid JSON body',
+          details: String(error)
+        }
       }, 400)
     };
   }

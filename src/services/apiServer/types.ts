@@ -39,7 +39,7 @@ export interface ContextFormatOptions {
 
 export interface OutlineNode {
   path: string;
-  abs_path: string;
+  absPath: string;
   depth: number;
   dependencies: string[];
 }
