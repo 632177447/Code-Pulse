@@ -126,7 +126,7 @@ export function useContextGeneration({ appConfig, filesList, userPrompt }: UseCo
     isLoading.value = true;
 
     try {
-      const result = await invoke<Array<{ path: string; content: string; abs_path: string; depth: number; dependencies: string[] }>>("generate_context", {
+      const result = await invoke<FileNode[]>("generate_context", {
         paths: paths,
         maxDepth: appConfig.maxDepth,
         generateTree: appConfig.generateTree,
@@ -142,7 +142,7 @@ export function useContextGeneration({ appConfig, filesList, userPrompt }: UseCo
       if (requestId !== currentRequestId.value) return;
 
       fileNodes.value = result.map(node => {
-        const normalizedNodeAbsPath = normalizePath(node.abs_path);
+        const normalizedNodeAbsPath = normalizePath(node.absPath);
         const origin = filesList.value.find(file => {
           const normalizedFilePath = normalizePath(file.path);
           return normalizedNodeAbsPath === normalizedFilePath || normalizedNodeAbsPath.startsWith(normalizedFilePath + "/");

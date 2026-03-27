@@ -145,6 +145,7 @@ impl From<ContextQueryRequest> for ContextRequest {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OutlineNode {
     pub path: String,
     pub abs_path: String,

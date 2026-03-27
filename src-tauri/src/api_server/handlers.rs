@@ -11,27 +11,33 @@ use super::types::{ContextQueryRequest, ContextRequest, OutlineNode, ServerConte
 pub async fn handle_health() -> impl IntoResponse {
     Json(json!({
         "status": "ok",
-        "engine": "rust",
-        "timestamp": chrono_like_timestamp(),
+        "meta": {
+            "engine": "rust",
+            "timestamp": chrono_like_timestamp(),
+        }
     }))
 }
 
 pub async fn handle_info() -> impl IntoResponse {
     Json(json!({
-        "name": "CodePulse API Service",
-        "version": env!("CARGO_PKG_VERSION"),
-        "description": "Local code analysis and context service",
-        "engine": "rust",
-        "routes": [
-            "/api/health",
-            "/api/info",
-            "/api/cache",
-            "/api/context",
-            "/api/context/text",
-            "/api/context/render",
-            "/api/context/abort",
-            "/api/outline"
-        ]
+        "data": {
+            "name": "CodePulse API Service",
+            "version": env!("CARGO_PKG_VERSION"),
+            "description": "Local code analysis and context service",
+            "routes": [
+                "/api/health",
+                "/api/info",
+                "/api/cache",
+                "/api/context",
+                "/api/context/text",
+                "/api/context/render",
+                "/api/context/abort",
+                "/api/outline"
+            ]
+        },
+        "meta": {
+            "engine": "rust"
+        }
     }))
 }
 
@@ -98,8 +104,10 @@ async fn execute_context(
         return (
             StatusCode::BAD_REQUEST,
             Json(json!({
-                "error": "Missing required field: paths",
-                "details": "Use POST /api/context with JSON body or GET /api/context?path=..."
+                "error": {
+                    "message": "Missing required field: paths",
+                    "details": "Use POST /api/context with JSON body or GET /api/context?path=..."
+                }
             })),
         );
     }
@@ -108,17 +116,20 @@ async fn execute_context(
         Ok(nodes) => (
             StatusCode::OK,
             Json(json!({
-                "status": "ok",
-                "engine": "rust",
-                "count": nodes.len(),
-                "data": nodes
+                "data": nodes,
+                "meta": {
+                    "count": nodes.len(),
+                    "engine": "rust"
+                }
             })),
         ),
         Err(error) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({
-                "error": "Failed to generate context",
-                "details": error
+                "error": {
+                    "message": "Failed to generate context",
+                    "details": error
+                }
             })),
         ),
     }
@@ -132,8 +143,10 @@ async fn execute_outline(
         return (
             StatusCode::BAD_REQUEST,
             Json(json!({
-                "error": "Missing required field: paths",
-                "details": "Use POST /api/outline with JSON body or GET /api/outline?path=..."
+                "error": {
+                    "message": "Missing required field: paths",
+                    "details": "Use POST /api/outline with JSON body or GET /api/outline?path=..."
+                }
             })),
         );
     }
@@ -150,18 +163,21 @@ async fn execute_outline(
             (
                 StatusCode::OK,
                 Json(json!({
-                    "status": "ok",
-                    "engine": "rust",
-                    "count": outline.len(),
-                    "data": outline
+                    "data": outline,
+                    "meta": {
+                        "count": outline.len(),
+                        "engine": "rust",
+                    }
                 })),
             )
         }
         Err(error) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({
-                "error": "Failed to generate outline",
-                "details": error
+                "error": {
+                    "message": "Failed to generate outline",
+                    "details": error
+                }
             })),
         ),
     }

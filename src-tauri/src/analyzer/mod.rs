@@ -33,6 +33,7 @@ struct CollectedFile {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FileNode {
     pub path: String,
     pub content: String,

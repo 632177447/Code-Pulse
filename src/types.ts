@@ -8,7 +8,7 @@ export interface FileListItem {
 export interface FileNode {
   path: string;
   content: string;
-  abs_path: string;
+  absPath: string;
   depth: number;
   dependencies: string[];
   originId?: string;
