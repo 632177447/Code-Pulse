@@ -27,6 +27,8 @@ pub async fn handle_info() -> impl IntoResponse {
             "/api/info",
             "/api/cache",
             "/api/context",
+            "/api/context/text",
+            "/api/context/render",
             "/api/context/abort",
             "/api/outline"
         ]

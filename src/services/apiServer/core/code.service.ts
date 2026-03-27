@@ -14,14 +14,8 @@ import {
 } from '../types';
 
 const FRONTEND_API_ROUTES = [
-  '/api/frontend/health',
-  '/api/frontend/info',
-  '/api/frontend/cache',
-  '/api/frontend/context',
-  '/api/frontend/context/text',
-  '/api/frontend/context/render',
-  '/api/frontend/context/abort',
-  '/api/frontend/outline'
+  '/api/context/text',
+  '/api/context/render'
 ];
 
 const GENERATE_CONTEXT_COMMAND = 'generate_context';

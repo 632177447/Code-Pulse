@@ -1,15 +1,7 @@
 import { Hono } from 'hono';
 import {
-  handleAbortContext,
-  handleDeleteCache,
-  handleGetContext,
   handleGetContextText,
-  handleGetInfo,
-  handleGetOutline,
-  handleHealthCheck,
-  handlePostContext,
   handlePostContextText,
-  handlePostOutline,
   handleRenderContextText
 } from './handlers';
 
@@ -24,18 +16,10 @@ app.use('*', async (c, next) => {
   console.log(`[ApiServer] ${c.req.method} ${c.req.url} - ${c.res.status} (${ms}ms)`);
 });
 
-// 注册前端桥接路由
-app.get('/api/frontend/health', handleHealthCheck);
-app.get('/api/frontend/info', handleGetInfo);
-app.delete('/api/frontend/cache', handleDeleteCache);
-app.get('/api/frontend/context', handleGetContext);
-app.post('/api/frontend/context', handlePostContext);
-app.post('/api/frontend/context/abort', handleAbortContext);
-app.get('/api/frontend/context/text', handleGetContextText);
-app.post('/api/frontend/context/text', handlePostContextText);
-app.post('/api/frontend/context/render', handleRenderContextText);
-app.get('/api/frontend/outline', handleGetOutline);
-app.post('/api/frontend/outline', handlePostOutline);
+// 注册前端增强业务路由（未在 Rust 段定义的逻辑）
+app.get('/api/context/text', handleGetContextText);
+app.post('/api/context/text', handlePostContextText);
+app.post('/api/context/render', handleRenderContextText);
 
 // 处理 404
 app.notFound((c) => {
