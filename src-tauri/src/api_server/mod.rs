@@ -4,7 +4,17 @@ pub mod handlers;
 
 pub use types::*;
 use bridge::handle_bridge_request;
-use handlers::{handle_rust_health, handle_rust_context_placeholder};
+use handlers::{
+    handle_abort_context,
+    handle_clear_cache,
+    handle_get_cache,
+    handle_get_context,
+    handle_get_outline,
+    handle_health,
+    handle_info,
+    handle_post_context,
+    handle_post_outline,
+};
 
 use axum::{
     routing::{any, get, post},
@@ -12,7 +22,7 @@ use axum::{
 };
 use std::net::SocketAddr;
 use tokio::sync::oneshot;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 pub async fn start_server(app: AppHandle, state: tauri::State<'_, ApiServerState>, port: u16) -> Result<(), String> {
     // 1. Stop existing server
@@ -27,20 +37,19 @@ pub async fn start_server(app: AppHandle, state: tauri::State<'_, ApiServerState
     let app_state = app.state::<crate::AppState>().inner().clone();
     let ctx = ServerContext {
         app_handle: app.clone(),
-        app_state: Arc::new(app_state),
+        app_state,
         pending_requests: state.pending_requests.clone(),
     };
     
     // 2. Build router with hybrid strategy
     let router = Router::new()
-        // --- Native Rust Routes (Highest Priority) ---
-        .route("/api/rust/health", get(handle_rust_health))
-        .route("/api/rust/context", post(handle_rust_context_placeholder))
-        
-        // --- Frontend Bridge (Fallback for everything else) ---
-        .fallback(any(move |state: axum::extract::State<ServerContext>, req| {
-            handle_bridge_request(state.app_handle.clone(), state.pending_requests.clone(), req)
-        }))
+        .route("/api/health", get(handle_health))
+        .route("/api/info", get(handle_info))
+        .route("/api/cache", get(handle_get_cache).delete(handle_clear_cache))
+        .route("/api/context", get(handle_get_context).post(handle_post_context))
+        .route("/api/context/abort", post(handle_abort_context))
+        .route("/api/outline", get(handle_get_outline).post(handle_post_outline))
+        .fallback(any(handle_bridge_request))
         .with_state(ctx);
 
     // Add CORS

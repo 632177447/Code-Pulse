@@ -1,31 +1,177 @@
-use axum::{extract::State, response::IntoResponse, Json};
+use axum::{
+    extract::{Query, State},
+    http::StatusCode,
+    response::IntoResponse,
+    Json,
+};
 use serde_json::json;
-use super::types::ServerContext;
 
-/// Native Rust health check
-pub async fn handle_rust_health(
-    State(ctx): State<ServerContext>,
-) -> impl IntoResponse {
+use super::types::{ContextQueryRequest, ContextRequest, OutlineNode, ServerContext};
+
+pub async fn handle_health() -> impl IntoResponse {
     Json(json!({
         "status": "ok",
         "engine": "rust",
-        "port": ctx.app_handle.inner_hmac_key().is_some(), // Just a placeholder use of context
-        "message": "This request was handled natively in Rust without bridge overhead."
+        "timestamp": chrono_like_timestamp(),
     }))
 }
 
-/// Native placeholder for context generation
-/// This demonstrates how it CAN access ctx.app_state
-pub async fn handle_rust_context_placeholder(
+pub async fn handle_info() -> impl IntoResponse {
+    Json(json!({
+        "name": "CodePulse API Service",
+        "version": env!("CARGO_PKG_VERSION"),
+        "description": "Local code analysis and context service",
+        "engine": "rust",
+        "routes": [
+            "/api/health",
+            "/api/info",
+            "/api/cache",
+            "/api/context",
+            "/api/context/abort",
+            "/api/outline"
+        ]
+    }))
+}
+
+pub async fn handle_get_cache(
     State(ctx): State<ServerContext>,
 ) -> impl IntoResponse {
-    // In a real implementation, you would:
-    // 1. Parse request body for paths/params
-    // 2. Call analyzer::analyze_dependencies(ctx.app_state.clone(), ...)
-    
     Json(json!({
-        "status": "native_connected",
-        "cache_entries": ctx.app_state.parse_cache.size(),
-        "message": "Native Rust context generation is connected to the core engine."
+        "entries": ctx.app_state.parse_cache.size()
     }))
+}
+
+pub async fn handle_clear_cache(
+    State(ctx): State<ServerContext>,
+) -> impl IntoResponse {
+    ctx.app_state.parse_cache.clear();
+    Json(json!({
+        "status": "ok",
+        "entries": 0
+    }))
+}
+
+pub async fn handle_abort_context(
+    State(ctx): State<ServerContext>,
+) -> impl IntoResponse {
+    ctx.app_state.abort_handle.store(true, std::sync::atomic::Ordering::SeqCst);
+    Json(json!({
+        "status": "aborting"
+    }))
+}
+
+pub async fn handle_get_context(
+    State(ctx): State<ServerContext>,
+    Query(query): Query<ContextQueryRequest>,
+) -> impl IntoResponse {
+    execute_context(ctx, query.into()).await
+}
+
+pub async fn handle_post_context(
+    State(ctx): State<ServerContext>,
+    Json(payload): Json<ContextRequest>,
+) -> impl IntoResponse {
+    execute_context(ctx, payload).await
+}
+
+pub async fn handle_get_outline(
+    State(ctx): State<ServerContext>,
+    Query(query): Query<ContextQueryRequest>,
+) -> impl IntoResponse {
+    execute_outline(ctx, query.into()).await
+}
+
+pub async fn handle_post_outline(
+    State(ctx): State<ServerContext>,
+    Json(payload): Json<ContextRequest>,
+) -> impl IntoResponse {
+    execute_outline(ctx, payload).await
+}
+
+async fn execute_context(
+    ctx: ServerContext,
+    request: ContextRequest,
+) -> impl IntoResponse {
+    if request.paths.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "Missing required field: paths",
+                "details": "Use POST /api/context with JSON body or GET /api/context?path=..."
+            })),
+        );
+    }
+
+    match crate::run_generate_context(ctx.app_state, request).await {
+        Ok(nodes) => (
+            StatusCode::OK,
+            Json(json!({
+                "status": "ok",
+                "engine": "rust",
+                "count": nodes.len(),
+                "data": nodes
+            })),
+        ),
+        Err(error) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "error": "Failed to generate context",
+                "details": error
+            })),
+        ),
+    }
+}
+
+async fn execute_outline(
+    ctx: ServerContext,
+    request: ContextRequest,
+) -> impl IntoResponse {
+    if request.paths.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "Missing required field: paths",
+                "details": "Use POST /api/outline with JSON body or GET /api/outline?path=..."
+            })),
+        );
+    }
+
+    match crate::run_generate_context(ctx.app_state, request).await {
+        Ok(nodes) => {
+            let outline: Vec<OutlineNode> = nodes.into_iter().map(|node| OutlineNode {
+                path: node.path,
+                abs_path: node.abs_path,
+                depth: node.depth,
+                dependencies: node.dependencies,
+            }).collect();
+
+            (
+                StatusCode::OK,
+                Json(json!({
+                    "status": "ok",
+                    "engine": "rust",
+                    "count": outline.len(),
+                    "data": outline
+                })),
+            )
+        }
+        Err(error) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "error": "Failed to generate outline",
+                "details": error
+            })),
+        ),
+    }
+}
+
+fn chrono_like_timestamp() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    now.to_string()
 }
