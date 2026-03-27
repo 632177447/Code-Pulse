@@ -6,10 +6,39 @@ use std::path::{Path};
 use std::fs;
 use std::sync::{Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
+use api_server::types::ContextRequest;
 
+#[derive(Clone)]
 pub struct AppState {
     pub abort_handle: Arc<AtomicBool>,
     pub parse_cache: Arc<cache::FileCache>,
+}
+
+async fn run_generate_context(
+    app_state: AppState,
+    request: ContextRequest,
+) -> Result<Vec<analyzer::FileNode>, String> {
+    app_state.abort_handle.store(false, Ordering::SeqCst);
+    let abort_handle = app_state.abort_handle.clone();
+    let parse_cache = app_state.parse_cache.clone();
+
+    // 将 CPU 密集型的同步文件遍历移到专用 blocking 线程池
+    // 避免占用 Tauri 的异步调度线程，从而解除对 webview IPC 通道的阻塞
+    tauri::async_runtime::spawn_blocking(move || {
+        analyzer::analyze_dependencies(
+            request.paths,
+            request.max_depth,
+            request.ignore_exts,
+            request.ignore_deep_parse,
+            request.included_types,
+            request.project_roots,
+            request.enable_minimization,
+            request.minimization_threshold,
+            request.minimization_depth_threshold,
+            Some(abort_handle),
+            parse_cache,
+        )
+    }).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -25,27 +54,20 @@ async fn generate_context(
     minimization_threshold: usize,
     minimization_depth_threshold: usize
 ) -> Result<Vec<analyzer::FileNode>, String> {
-    state.abort_handle.store(false, Ordering::SeqCst);
-    let abort_handle = state.abort_handle.clone();
-    let parse_cache = state.parse_cache.clone();
-
-    // 将 CPU 密集型的同步文件遍历移到专用 blocking 线程池
-    // 避免占用 Tauri 的异步调度线程，从而解除对 webview IPC 通道的阻塞
-    tauri::async_runtime::spawn_blocking(move || {
-        analyzer::analyze_dependencies(
-            paths, 
-            max_depth, 
-            ignore_exts, 
-            ignore_deep_parse, 
-            included_types, 
-            project_roots, 
+    run_generate_context(
+        state.inner().clone(),
+        ContextRequest {
+            paths,
+            max_depth,
+            ignore_exts,
+            ignore_deep_parse,
+            included_types,
+            project_roots,
             enable_minimization,
             minimization_threshold,
             minimization_depth_threshold,
-            Some(abort_handle),
-            parse_cache
-        )
-    }).await.map_err(|e| e.to_string())?
+        },
+    ).await
 }
 
 #[tauri::command]

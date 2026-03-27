@@ -1,21 +1,19 @@
 use axum::{
     body::Body,
     extract::Request,
+    extract::State,
     response::{IntoResponse, Response},
-    Json,
 };
 use serde_json::json;
-use std::sync::Arc;
-use tauri::{AppHandle, Emitter};
+use tauri::Emitter;
 use tokio::sync::oneshot;
 use uuid::Uuid;
 use std::collections::HashMap;
 
-use super::types::{ApiRequest, ApiResponse, PendingRequests};
+use super::types::{ApiRequest, ServerContext};
 
 pub async fn handle_bridge_request(
-    app: AppHandle,
-    pending: Arc<PendingRequests>,
+    State(ctx): State<ServerContext>,
     req: Request,
 ) -> impl IntoResponse {
     let id = Uuid::new_v4().to_string();
@@ -65,11 +63,11 @@ pub async fn handle_bridge_request(
     };
 
     let (tx, rx) = oneshot::channel();
-    pending.insert(id.clone(), tx);
+    ctx.pending_requests.insert(id.clone(), tx);
 
     // Emit to frontend
-    if let Err(e) = app.emit("api-request", &api_req) {
-        pending.remove(&id);
+    if let Err(e) = ctx.app_handle.emit("api-request", &api_req) {
+        ctx.pending_requests.remove(&id);
         return Response::builder()
             .status(500)
             .header("Content-Type", "application/json")
@@ -98,7 +96,7 @@ pub async fn handle_bridge_request(
             })
         }
         _ => {
-            pending.remove(&id);
+            ctx.pending_requests.remove(&id);
             Response::builder()
                 .status(504)
                 .header("Content-Type", "application/json")

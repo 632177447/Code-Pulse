@@ -65,6 +65,11 @@ impl FileCache {
             data.clear();
         }
     }
+
+    /// 返回当前缓存中的条目数量
+    pub fn size(&self) -> usize {
+        self.data.lock().map(|data| data.len()).unwrap_or(0)
+    }
 }
 
 impl Default for FileCache {
