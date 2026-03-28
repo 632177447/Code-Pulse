@@ -76,24 +76,24 @@ export const GenerateOutlineBodySchema = z.object({
     description: '待生成大纲的绝对路径列表' 
   }),
   maxDepth: z.number().int().min(0).optional().openapi({ example: 1, description: '依赖展开的最大深度' }),
-  ignoreExts: z.string().optional().openapi({ description: '忽略的文件后缀' }),
-  ignoreDeepParse: z.string().optional().openapi({ description: '忽略深度解析的文件后缀' }),
-  includedTypes: z.array(z.string()).optional().openapi({ description: '包含的文件后缀扩展名' }),
-  projectRoots: z.string().optional().openapi({ description: '项目根目录配置，用于修正显示路径' }),
+  ignoreExts: z.string().optional().openapi({ description: '需要忽略的文件后缀（逗号分隔）' }),
+  ignoreDeepParse: z.string().optional().openapi({ description: '需要忽略深度解析的文件后缀或目录（逗号分隔）' }),
+  includedTypes: z.array(z.string()).optional().openapi({ description: '包含在解析范围内的文件后缀列表' }),
+  projectRoots: z.string().optional().openapi({ description: '项目根目录配置（逗号分隔），用于优化显示路径' }),
 }).openapi('GenerateOutlineRequest');
 
 export const RenderContextBodySchema = z.object({
   fileNodes: z.array(FileNodeSchema).min(1).openapi({ description: '待渲染的文件节点列表' }),
-  selectedPaths: z.array(z.string()).optional().openapi({ description: '被选中高亮的文件路径' }),
+  selectedPaths: z.array(z.string()).optional().openapi({ description: '被选中的主要文件路径列表，用于在结果中标记 [PRIMARY FILE]' }),
   
   // 格式化相关可选项
-  generateTree: z.boolean().optional(),
-  generateRelationshipText: z.boolean().optional(),
-  highlightPrimaryFiles: z.boolean().optional(),
-  optimizePathDisplay: z.boolean().optional(),
-  customPrompt: z.string().optional(),
-  userPrompt: z.string().optional(),
-  longContextThreshold: z.number().int().min(0).optional(),
+  generateTree: z.boolean().optional().openapi({ description: '是否在输出文本头部生成源码树结构图' }),
+  generateRelationshipText: z.boolean().optional().openapi({ description: '是否生成文件间的依赖关系摘要' }),
+  highlightPrimaryFiles: z.boolean().optional().openapi({ description: '是否使用 [PRIMARY FILE] 标签标记 selectedPaths 中的文件' }),
+  optimizePathDisplay: z.boolean().optional().openapi({ description: '是否通过提取公共前缀（<BASE_PATH>）优化长路径显示' }),
+  customPrompt: z.string().optional().openapi({ description: '注入到上下文底部的系统级自定义提示词' }),
+  userPrompt: z.string().optional().openapi({ description: '注入到上下文顶部的用户特定指令' }),
+  longContextThreshold: z.number().int().min(0).optional().openapi({ description: '长内容触发 userPrompt 布局微调的字符长度阈值' }),
 }).openapi('RenderContextRequest');
 
 export const CommonMetaSchema = z.object({
