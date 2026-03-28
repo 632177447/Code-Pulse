@@ -2,15 +2,11 @@ import { Hono } from 'hono';
 import {
   handleAbortContext,
   handleDeleteCache,
-  handleGetContext,
-  handleGetContextText,
+  handleGenerateContext,
+  handleGenerateOutline,
   handleGetInfo,
-  handleGetOutline,
   handleHealthCheck,
-  handlePostContext,
-  handlePostContextText,
-  handlePostOutline,
-  handleRenderContextText
+  handleRenderContext
 } from './handlers';
 
 // 初始化 Hono 应用
@@ -24,22 +20,18 @@ app.use('*', async (c, next) => {
   console.log(`[ApiServer] ${c.req.method} ${c.req.url} - ${c.res.status} (${ms}ms)`);
 });
 
-// 基础功能路由
-app.get('/api/health', handleHealthCheck);
-app.get('/api/info', handleGetInfo);
-app.delete('/api/cache', handleDeleteCache);
+// 系统及通用 API
+app.get('/api/v1/health', handleHealthCheck);
+app.get('/api/v1/info', handleGetInfo);
+app.delete('/api/v1/cache', handleDeleteCache);
 
-// 代码上下文相关路由
-app.get('/api/context', handleGetContext);
-app.post('/api/context', handlePostContext);
-app.post('/api/context/abort', handleAbortContext);
-app.get('/api/outline', handleGetOutline);
-app.post('/api/outline', handlePostOutline);
+// Context (上下文) 资源路由
+app.post('/api/v1/contexts/generate', handleGenerateContext);
+app.post('/api/v1/contexts/abort', handleAbortContext);
+app.post('/api/v1/contexts/render', handleRenderContext);
 
-// 前端增强业务路由 (处理格式化)
-app.get('/api/context/text', handleGetContextText);
-app.post('/api/context/text', handlePostContextText);
-app.post('/api/context/render', handleRenderContextText);
+// Outline (依赖大纲) 资源路由
+app.post('/api/v1/outlines/generate', handleGenerateOutline);
 
 // 处理 404
 app.notFound((c) => {

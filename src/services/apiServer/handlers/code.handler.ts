@@ -2,11 +2,9 @@ import type { Context } from 'hono';
 import type { ZodError, ZodType } from 'zod';
 import { ApiValidationError, CodeService } from '../core/code.service';
 import {
-  ContextRequestBodySchema,
-  ContextRequestQuerySchema,
-  ContextTextRequestBodySchema,
-  ContextTextRequestQuerySchema,
-  RenderContextRequestBodySchema
+  GenerateContextBodySchema,
+  GenerateOutlineBodySchema,
+  RenderContextBodySchema
 } from '../schemas/code.schema';
 
 function createSchemaErrorResponse(c: Context, error: ZodError) {
@@ -68,68 +66,34 @@ export const handleAbortContext = async (c: Context) => {
 };
 
 /**
- * 获取原始上下文节点
+ * 生成上下文 (支持 json 或 text 格式)
  */
-export const handleGetContext = async (c: Context) => {
-  const query = ContextRequestQuerySchema.safeParse(c.req.query());
-
-  if (!query.success) {
-    return createSchemaErrorResponse(c, query.error);
-  }
-
-  try {
-    return c.json(await CodeService.getContext(query.data));
-  } catch (error) {
-    return createServiceErrorResponse(c, error);
-  }
-};
-
-/**
- * 通过请求体获取原始上下文节点
- */
-export const handlePostContext = async (c: Context) => {
-  const parsedBody = await parseJsonBody(c, ContextRequestBodySchema);
+export const handleGenerateContext = async (c: Context) => {
+  const parsedBody = await parseJsonBody(c, GenerateContextBodySchema);
 
   if (parsedBody.response) {
     return parsedBody.response;
   }
 
   try {
-    return c.json(await CodeService.getContext(parsedBody.data!));
-  } catch (error) {
-    return createServiceErrorResponse(c, error);
-  }
-};
+    const data = parsedBody.data!;
+    
+    // 决定返回格式:
+    // 1. 如果请求体明确指定了 format，优先使用
+    // 2. 如果体未指定，但客户端 Accept Header 包含 text/plain，则按 text 返回
+    let format = data.format;
+    if (!format || format === 'json') {
+      const acceptHeader = c.req.header('Accept');
+      if (acceptHeader && acceptHeader.includes('text/plain')) {
+        format = 'text';
+      }
+    }
 
-/**
- * 获取格式化后的完整上下文文本
- */
-export const handleGetContextText = async (c: Context) => {
-  const query = ContextTextRequestQuerySchema.safeParse(c.req.query());
-
-  if (!query.success) {
-    return createSchemaErrorResponse(c, query.error);
-  }
-
-  try {
-    return c.json(await CodeService.getContextText(query.data));
-  } catch (error) {
-    return createServiceErrorResponse(c, error);
-  }
-};
-
-/**
- * 通过请求体获取格式化后的完整上下文文本
- */
-export const handlePostContextText = async (c: Context) => {
-  const parsedBody = await parseJsonBody(c, ContextTextRequestBodySchema);
-
-  if (parsedBody.response) {
-    return parsedBody.response;
-  }
-
-  try {
-    return c.json(await CodeService.getContextText(parsedBody.data!));
+    if (format === 'text') {
+      return c.json(await CodeService.getContextText(data));
+    } else {
+      return c.json(await CodeService.getContext(data));
+    }
   } catch (error) {
     return createServiceErrorResponse(c, error);
   }
@@ -138,8 +102,8 @@ export const handlePostContextText = async (c: Context) => {
 /**
  * 直接渲染已有节点为上下文文本
  */
-export const handleRenderContextText = async (c: Context) => {
-  const parsedBody = await parseJsonBody(c, RenderContextRequestBodySchema);
+export const handleRenderContext = async (c: Context) => {
+  const parsedBody = await parseJsonBody(c, RenderContextBodySchema);
 
   if (parsedBody.response) {
     return parsedBody.response;
@@ -151,25 +115,8 @@ export const handleRenderContextText = async (c: Context) => {
 /**
  * 获取依赖大纲
  */
-export const handleGetOutline = async (c: Context) => {
-  const query = ContextRequestQuerySchema.safeParse(c.req.query());
-
-  if (!query.success) {
-    return createSchemaErrorResponse(c, query.error);
-  }
-
-  try {
-    return c.json(await CodeService.getOutline(query.data));
-  } catch (error) {
-    return createServiceErrorResponse(c, error);
-  }
-};
-
-/**
- * 通过请求体获取依赖大纲
- */
-export const handlePostOutline = async (c: Context) => {
-  const parsedBody = await parseJsonBody(c, ContextRequestBodySchema);
+export const handleGenerateOutline = async (c: Context) => {
+  const parsedBody = await parseJsonBody(c, GenerateOutlineBodySchema);
 
   if (parsedBody.response) {
     return parsedBody.response;

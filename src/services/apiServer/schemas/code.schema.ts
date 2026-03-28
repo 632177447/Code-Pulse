@@ -1,44 +1,5 @@
 import { z } from 'zod';
 
-const QueryNumberSchema = z.preprocess((value) => {
-  if (value === undefined || value === null || value === '') {
-    return undefined;
-  }
-
-  if (typeof value === 'number') {
-    return value;
-  }
-
-  if (typeof value === 'string') {
-    const parsed = Number(value);
-    return Number.isNaN(parsed) ? value : parsed;
-  }
-
-  return value;
-}, z.number().int().min(0).optional());
-
-const QueryBooleanSchema = z.preprocess((value) => {
-  if (value === undefined || value === null || value === '') {
-    return undefined;
-  }
-
-  if (typeof value === 'boolean') {
-    return value;
-  }
-
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === 'true') {
-      return true;
-    }
-    if (normalized === 'false') {
-      return false;
-    }
-  }
-
-  return value;
-}, z.boolean().optional());
-
 const FileNodeSchema = z.object({
   path: z.string(),
   content: z.string(),
@@ -48,20 +9,7 @@ const FileNodeSchema = z.object({
   originId: z.string().optional()
 });
 
-export const ContextRequestQuerySchema = z.object({
-  path: z.string().optional(),
-  paths: z.string().optional(),
-  maxDepth: QueryNumberSchema,
-  ignoreExts: z.string().optional(),
-  ignoreDeepParse: z.string().optional(),
-  includedTypes: z.string().optional(),
-  projectRoots: z.string().optional(),
-  enableMinimization: QueryBooleanSchema,
-  minimizationThreshold: QueryNumberSchema,
-  minimizationDepthThreshold: QueryNumberSchema
-});
-
-export const ContextRequestBodySchema = z.object({
+export const GenerateContextBodySchema = z.object({
   path: z.string().optional(),
   paths: z.array(z.string()).optional(),
   maxDepth: z.number().int().min(0).optional(),
@@ -71,38 +19,41 @@ export const ContextRequestBodySchema = z.object({
   projectRoots: z.string().optional(),
   enableMinimization: z.boolean().optional(),
   minimizationThreshold: z.number().int().min(0).optional(),
-  minimizationDepthThreshold: z.number().int().min(0).optional()
-});
+  minimizationDepthThreshold: z.number().int().min(0).optional(),
 
-export const ContextFormatQuerySchema = z.object({
-  generateTree: QueryBooleanSchema,
-  generateRelationshipText: QueryBooleanSchema,
-  highlightPrimaryFiles: QueryBooleanSchema,
-  optimizePathDisplay: QueryBooleanSchema,
-  customPrompt: z.string().optional(),
-  userPrompt: z.string().optional(),
-  longContextThreshold: QueryNumberSchema
-});
-
-export const ContextFormatBodySchema = z.object({
+  // 格式化相关可选项
   generateTree: z.boolean().optional(),
   generateRelationshipText: z.boolean().optional(),
   highlightPrimaryFiles: z.boolean().optional(),
   optimizePathDisplay: z.boolean().optional(),
   customPrompt: z.string().optional(),
   userPrompt: z.string().optional(),
-  longContextThreshold: z.number().int().min(0).optional()
+  longContextThreshold: z.number().int().min(0).optional(),
+
+  // 输出格式要求，默认返回 json 节点结构。
+  format: z.enum(['json', 'text']).optional().default('json')
 });
 
-export const ContextTextRequestQuerySchema = ContextRequestQuerySchema.extend({
-  ...ContextFormatQuerySchema.shape
+export const GenerateOutlineBodySchema = z.object({
+  path: z.string().optional(),
+  paths: z.array(z.string()).optional(),
+  maxDepth: z.number().int().min(0).optional(),
+  ignoreExts: z.string().optional(),
+  ignoreDeepParse: z.string().optional(),
+  includedTypes: z.array(z.string()).optional(),
+  projectRoots: z.string().optional(),
 });
 
-export const ContextTextRequestBodySchema = ContextRequestBodySchema.extend({
-  ...ContextFormatBodySchema.shape
-});
-
-export const RenderContextRequestBodySchema = ContextFormatBodySchema.extend({
+export const RenderContextBodySchema = z.object({
   fileNodes: z.array(FileNodeSchema).min(1),
-  selectedPaths: z.array(z.string()).optional()
+  selectedPaths: z.array(z.string()).optional(),
+  
+  // 格式化相关可选项
+  generateTree: z.boolean().optional(),
+  generateRelationshipText: z.boolean().optional(),
+  highlightPrimaryFiles: z.boolean().optional(),
+  optimizePathDisplay: z.boolean().optional(),
+  customPrompt: z.string().optional(),
+  userPrompt: z.string().optional(),
+  longContextThreshold: z.number().int().min(0).optional(),
 });
