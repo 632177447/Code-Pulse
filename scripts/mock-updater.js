@@ -14,7 +14,7 @@ import { execFileSync } from 'child_process';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 const mockDir = path.join(rootDir, 'mock-server');
-const tauriConfPath = path.join(rootDir, 'src-tauri/tauri.conf.json');
+const tauriConfPath = path.join(rootDir, 'src-tauri/tauri.conf.json5');
 const bundleDir = path.join(rootDir, 'src-tauri/target/release/bundle/msi');
 const args = process.argv.slice(2);
 const shouldUseBuiltInstaller = args.includes('--use-built-installer');
@@ -75,7 +75,7 @@ async function run() {
   console.log('🚀 开始准备本地更新测试环境...');
 
   if (!fs.existsSync(tauriConfPath)) {
-    console.error('❌ 未找到 tauri.conf.json');
+    console.error('❌ 未找到 tauri.conf.json5');
     return;
   }
 
@@ -140,7 +140,7 @@ async function run() {
   console.log('🎉 本地测试环境准备就绪！');
   console.log('1. 启动本地服务器:');
   console.log('   npx serve ./mock-server -p 8080');
-  console.log('\n2. 临时修改 src-tauri/tauri.conf.json:');
+  console.log('\n2. 临时修改 src-tauri/tauri.conf.json5:');
   console.log(`   "endpoints": ["http://localhost:8080/latest.json"]`);
   console.log('\n3. 启动 Tauri 应用测试更新检测:');
   console.log('   npm run tauri -- dev');

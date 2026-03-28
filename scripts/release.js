@@ -14,7 +14,7 @@ const rootDir = path.resolve(__dirname, '..');
 
 const paths = {
   packageJson: path.join(rootDir, 'package.json'),
-  tauriConf: path.join(rootDir, 'src-tauri/tauri.conf.json'),
+  tauriConf: path.join(rootDir, 'src-tauri/tauri.conf.json5'),
   cargoToml: path.join(rootDir, 'src-tauri/Cargo.toml'),
 };
 
@@ -37,11 +37,11 @@ function updateVersion() {
   fs.writeFileSync(paths.packageJson, JSON.stringify(pkg, null, 2) + '\n');
   console.log('✅ Updated package.json');
 
-  // 2. 同步 tauri.conf.json
+  // 2. 同步 tauri.conf.json5
   const tauriConf = JSON.parse(fs.readFileSync(paths.tauriConf, 'utf8'));
   tauriConf.version = targetVersion;
   fs.writeFileSync(paths.tauriConf, JSON.stringify(tauriConf, null, 2) + '\n');
-  console.log('✅ Updated tauri.conf.json');
+  console.log('✅ Updated tauri.conf.json5');
 
   // 3. 同步 Cargo.toml (使用正则，防止破坏文件其他部分)
   let cargoContent = fs.readFileSync(paths.cargoToml, 'utf8');
