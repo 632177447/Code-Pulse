@@ -1,22 +1,6 @@
-import type { Context } from 'hono';
-import type { ZodError, ZodType } from 'zod';
 import { ApiValidationError, CodeService } from '../core/code.service';
-import {
-  GenerateContextBodySchema,
-  GenerateOutlineBodySchema,
-  RenderContextBodySchema
-} from '../schemas/code.schema';
 
-function createSchemaErrorResponse(c: Context, error: ZodError) {
-  return c.json({
-    error: {
-      message: 'Invalid request parameters',
-      details: error.format()
-    }
-  }, 400);
-}
-
-function createServiceErrorResponse(c: Context, error: unknown) {
+function createServiceErrorResponse(c: any, error: unknown) {
   if (error instanceof ApiValidationError) {
     return c.json({
       error: {
@@ -29,54 +13,26 @@ function createServiceErrorResponse(c: Context, error: unknown) {
   throw error;
 }
 
-async function parseJsonBody<T>(c: Context, schema: ZodType<T>) {
-  try {
-    const body = await c.req.json();
-    const result = schema.safeParse(body);
-
-    if (!result.success) {
-      return { response: createSchemaErrorResponse(c, result.error) };
-    }
-
-    return { data: result.data };
-  } catch (error) {
-    return {
-      response: c.json({
-        error: {
-          message: 'Invalid JSON body',
-          details: String(error)
-        }
-      }, 400)
-    };
-  }
-}
-
 /**
  * 清空 Rust 解析缓存
  */
-export const handleDeleteCache = async (c: Context) => {
-  return c.json(await CodeService.clearCache());
+export const handleDeleteCache = async (c: any) => {
+  return c.json(await CodeService.clearCache(), 200);
 };
 
 /**
  * 中断当前上下文生成
  */
-export const handleAbortContext = async (c: Context) => {
-  return c.json(await CodeService.abortContext());
+export const handleAbortContext = async (c: any) => {
+  return c.json(await CodeService.abortContext(), 200);
 };
 
 /**
  * 生成上下文 (支持 json 或 text 格式)
  */
-export const handleGenerateContext = async (c: Context) => {
-  const parsedBody = await parseJsonBody(c, GenerateContextBodySchema);
-
-  if (parsedBody.response) {
-    return parsedBody.response;
-  }
-
+export const handleGenerateContext = async (c: any) => {
   try {
-    const data = parsedBody.data!;
+    const data = c.req.valid('json');
     
     // 决定返回格式:
     // 1. 如果请求体明确指定了 format，优先使用
@@ -90,9 +46,9 @@ export const handleGenerateContext = async (c: Context) => {
     }
 
     if (format === 'text') {
-      return c.json(await CodeService.getContextText(data));
+      return c.json(await CodeService.getContextText(data), 200);
     } else {
-      return c.json(await CodeService.getContext(data));
+      return c.json(await CodeService.getContext(data), 200);
     }
   } catch (error) {
     return createServiceErrorResponse(c, error);
@@ -102,28 +58,18 @@ export const handleGenerateContext = async (c: Context) => {
 /**
  * 直接渲染已有节点为上下文文本
  */
-export const handleRenderContext = async (c: Context) => {
-  const parsedBody = await parseJsonBody(c, RenderContextBodySchema);
-
-  if (parsedBody.response) {
-    return parsedBody.response;
-  }
-
-  return c.json(await CodeService.renderContextText(parsedBody.data!));
+export const handleRenderContext = async (c: any) => {
+  const data = c.req.valid('json');
+  return c.json(await CodeService.renderContextText(data), 200);
 };
 
 /**
  * 获取依赖大纲
  */
-export const handleGenerateOutline = async (c: Context) => {
-  const parsedBody = await parseJsonBody(c, GenerateOutlineBodySchema);
-
-  if (parsedBody.response) {
-    return parsedBody.response;
-  }
-
+export const handleGenerateOutline = async (c: any) => {
   try {
-    return c.json(await CodeService.getOutline(parsedBody.data!));
+    const data = c.req.valid('json');
+    return c.json(await CodeService.getOutline(data), 200);
   } catch (error) {
     return createServiceErrorResponse(c, error);
   }

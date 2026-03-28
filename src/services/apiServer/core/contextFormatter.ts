@@ -140,7 +140,7 @@ export function createRenderableContextNodes(fileNodes: FileNode[], selectedPath
     content: node.content,
     depth: node.depth,
     dependencies: [...node.dependencies],
-    isPrimary: Boolean(node.originId) || isSelectedPath(node.abs_path, selectedPaths)
+    isPrimary: Boolean(node.originId) || isSelectedPath(node.absPath || node.path, selectedPaths)
   }));
 }
 

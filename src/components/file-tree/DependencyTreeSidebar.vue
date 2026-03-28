@@ -2,7 +2,7 @@
 import FileTree from './FileTree.vue';
 
 defineProps<{
-    fileNodes: {path: string, content: string, abs_path: string, originId?: string}[];
+    fileNodes: {path: string, content: string, absPath: string, originId?: string}[];
 }>();
 
 const emit = defineEmits<{
