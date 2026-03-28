@@ -4,7 +4,7 @@ import DependencyTreeSidebar from "../file-tree/DependencyTreeSidebar.vue";
 import { getDisplayBasePath, replacePathWithSymbol } from "../../utils";
 
 const props = defineProps<{
-  fileNodes: {path: string, content: string, abs_path: string, originId?: string}[];
+  fileNodes: {path: string, content: string, absPath: string, originId?: string}[];
   sidebarWidth: number;
   outputContext: string;
   totalCharacters: number;

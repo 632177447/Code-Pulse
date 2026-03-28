@@ -8,6 +8,7 @@ export const BASE_PATH_SYMBOL = '<BASE_PATH>';
  * @returns 标准化后的路径
  */
 export const normalizePath = (p: string) => {
+  if (typeof p !== 'string' || !p) return '';
   return p.replace(/\\/g, '/')
           .toLowerCase()
           .trim()
@@ -68,6 +69,7 @@ export const replacePathWithSymbol = (path: string, basePath: string, symbol: st
  * @returns 父目录路径
  */
 export const getDirname = (p: string) => {
+  if (typeof p !== 'string' || !p) return '';
   const lastSlash = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
   return lastSlash > -1 ? p.substring(0, lastSlash) : p;
 };

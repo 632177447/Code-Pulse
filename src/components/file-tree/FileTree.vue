@@ -4,7 +4,7 @@ import FileTreeNode from './FileTreeNode.vue';
 import { getDirname } from '../../utils';
 
 const props = defineProps<{
-  nodes: {path: string, content: string, abs_path: string, originId?: string}[];
+  nodes: {path: string, content: string, absPath: string, originId?: string}[];
 }>();
 
 const emit = defineEmits<{
@@ -24,7 +24,7 @@ const root = computed(() => {
     let currentPath = '';
 
     const absPaths: string[] = new Array(parts.length);
-    let curr = node.abs_path;
+    let curr = node.absPath;
     for (let i = parts.length - 1; i >= 0; i--) {
         absPaths[i] = curr;
         curr = getDirname(curr);
