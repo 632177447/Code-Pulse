@@ -26,7 +26,6 @@ const FRONTEND_API_ROUTES = [
 const GENERATE_CONTEXT_COMMAND = 'generate_context';
 const ABORT_CONTEXT_COMMAND = 'abort_generate_context';
 const CLEAR_CACHE_COMMAND = 'clear_cache';
-const FRONTEND_ENGINE = 'frontend';
 
 export class ApiValidationError extends Error {
   details?: string;
@@ -43,6 +42,16 @@ function splitTextList(value: string) {
     .split(/[\n\r,]/)
     .map(item => item.trim())
     .filter(Boolean);
+}
+
+/**
+ * 判断是否为绝对路径 (支持 Windows 盘号/UNC 或 Unix 根路径)
+ */
+function isAbsolutePath(p: string) {
+  if (!p || typeof p !== 'string') return false;
+  const trimmed = p.trim();
+  // Windows: C:\... 或 \\server\... | Unix: /...
+  return /^[a-zA-Z]:[\\/]/.test(trimmed) || trimmed.startsWith('\\\\') || trimmed.startsWith('/');
 }
 
 function normalizePaths(input?: string[] | string, fallbackPath?: string) {
@@ -115,6 +124,16 @@ function ensurePaths(paths: string[], routeDescription: string) {
   if (paths.length === 0) {
     throw new ApiValidationError('Missing required field: paths', routeDescription);
   }
+
+  // 严格校验：API 接口仅接受绝对路径以确保行为确定性
+  for (const p of paths) {
+    if (!isAbsolutePath(p)) {
+      throw new ApiValidationError(
+        `Invalid path: "${p}". API only supports absolute paths to ensure predictable behavior.`,
+        routeDescription
+      );
+    }
+  }
 }
 
 async function generateFileNodes(request: ContextRequest) {
@@ -147,7 +166,6 @@ export const CodeService = {
     return {
       status: 'ok',
       meta: {
-        engine: FRONTEND_ENGINE,
         timestamp: Math.floor(Date.now() / 1000).toString()
       }
     };
@@ -161,9 +179,7 @@ export const CodeService = {
         description: 'Frontend-powered context rendering and analysis gateway',
         routes: FRONTEND_API_ROUTES
       },
-      meta: {
-        engine: FRONTEND_ENGINE
-      }
+      meta: {}
     };
   },
 
@@ -172,9 +188,7 @@ export const CodeService = {
 
     return {
       status: 'ok',
-      meta: {
-        engine: FRONTEND_ENGINE
-      }
+      meta: {}
     };
   },
 
@@ -183,9 +197,7 @@ export const CodeService = {
 
     return {
       status: 'aborting',
-      meta: {
-        engine: FRONTEND_ENGINE
-      }
+      meta: {}
     };
   },
 
@@ -196,8 +208,7 @@ export const CodeService = {
     return {
       data: nodes,
       meta: {
-        count: nodes.length,
-        engine: FRONTEND_ENGINE
+        count: nodes.length
       }
     };
   },
@@ -209,8 +220,7 @@ export const CodeService = {
     return {
       data: outline,
       meta: {
-        count: outline.length,
-        engine: FRONTEND_ENGINE
+        count: outline.length
       }
     };
   },
@@ -225,8 +235,7 @@ export const CodeService = {
       text,
       meta: {
         count: nodes.length,
-        length: text.length,
-        engine: FRONTEND_ENGINE
+        length: text.length
       }
     };
   },
@@ -240,8 +249,7 @@ export const CodeService = {
       text,
       meta: {
         count: input.fileNodes.length,
-        length: text.length,
-        engine: FRONTEND_ENGINE
+        length: text.length
       }
     };
   }
