@@ -1,7 +1,15 @@
 import { Hono } from 'hono';
 import {
+  handleAbortContext,
+  handleDeleteCache,
+  handleGetContext,
   handleGetContextText,
+  handleGetInfo,
+  handleGetOutline,
+  handleHealthCheck,
+  handlePostContext,
   handlePostContextText,
+  handlePostOutline,
   handleRenderContextText
 } from './handlers';
 
@@ -16,7 +24,19 @@ app.use('*', async (c, next) => {
   console.log(`[ApiServer] ${c.req.method} ${c.req.url} - ${c.res.status} (${ms}ms)`);
 });
 
-// 注册前端增强业务路由（未在 Rust 段定义的逻辑）
+// 基础功能路由
+app.get('/api/health', handleHealthCheck);
+app.get('/api/info', handleGetInfo);
+app.delete('/api/cache', handleDeleteCache);
+
+// 代码上下文相关路由
+app.get('/api/context', handleGetContext);
+app.post('/api/context', handlePostContext);
+app.post('/api/context/abort', handleAbortContext);
+app.get('/api/outline', handleGetOutline);
+app.post('/api/outline', handlePostOutline);
+
+// 前端增强业务路由 (处理格式化)
 app.get('/api/context/text', handleGetContextText);
 app.post('/api/context/text', handlePostContextText);
 app.post('/api/context/render', handleRenderContextText);
