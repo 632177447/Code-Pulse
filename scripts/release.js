@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { applyEdits, modify } from 'jsonc-parser';
 
 /**
  * Tauri 版本同步脚本
@@ -37,10 +38,16 @@ function updateVersion() {
   fs.writeFileSync(paths.packageJson, JSON.stringify(pkg, null, 2) + '\n');
   console.log('✅ Updated package.json');
 
-  // 2. 同步 tauri.conf.json5
-  const tauriConf = JSON.parse(fs.readFileSync(paths.tauriConf, 'utf8'));
-  tauriConf.version = targetVersion;
-  fs.writeFileSync(paths.tauriConf, JSON.stringify(tauriConf, null, 2) + '\n');
+  // 2. 同步 tauri.conf.json5 (使用 jsonc-parser 以保留注释和格式)
+  const tauriConfContent = fs.readFileSync(paths.tauriConf, 'utf8');
+  const edits = modify(tauriConfContent, ['version'], targetVersion, {
+    formattingOptions: {
+      insertSpaces: true,
+      tabSize: 2
+    }
+  });
+  const updatedTauriConf = applyEdits(tauriConfContent, edits);
+  fs.writeFileSync(paths.tauriConf, updatedTauriConf);
   console.log('✅ Updated tauri.conf.json5');
 
   // 3. 同步 Cargo.toml (使用正则，防止破坏文件其他部分)
