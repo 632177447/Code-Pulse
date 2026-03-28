@@ -80,11 +80,19 @@ function updateVersion() {
 
   // 执行 Git 命令
   runCommand(`git add .`);
-  runCommand(`git commit -m "chore: release ${vTag}"`);
   
-  // 检查 Tag 是否已存在，如果存在则删除（可选，这里采用先尝试删除的稳健策略）
+  // 检查是否有变动需要提交
+  const status = execSync('git status --porcelain', { encoding: 'utf8' }).trim();
+  if (status) {
+    runCommand(`git commit -m "chore: release ${vTag}"`);
+  } else {
+    console.log('[Release] 工作区干净，跳过 commit。');
+  }
+  
+  // 检查 Tag 是否已存在，如果存在则删除
   try {
     execSync(`git tag -d ${vTag}`, { stdio: 'ignore' });
+    execSync(`git push origin :refs/tags/${vTag}`, { stdio: 'ignore' });
   } catch (e) {}
 
   runCommand(`git tag ${vTag}`);
