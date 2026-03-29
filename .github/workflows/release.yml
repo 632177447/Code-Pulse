@@ -51,8 +51,9 @@ jobs:
         id: changelog
         shell: bash
         run: |
-          # 提取第一个 ## [ 到底一个 --- 之间的内容，并去掉首尾匹配行
-          CONTENT=$(sed -n '/^## \[/,/^---/p' CHANGELOG.md | sed '1d;$d')
+          # 提取第一个 ## [ 到第一个 --- 之间的内容 (不包含首尾行)
+          CONTENT=$(awk '/^## \[/{flag=1; next} /^---/{exit} flag' CHANGELOG.md)
+
           # 处理多行输出 (GitHub Actions 推荐方式)
           echo "body<<EOF" >> $GITHUB_OUTPUT
           echo "$CONTENT" >> $GITHUB_OUTPUT
