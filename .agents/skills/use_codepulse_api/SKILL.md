@@ -1,6 +1,6 @@
 ---
 name: Use CodePulse API
-description: "当需要跨文件分析代码依赖关系、理解模块架构、或在重构/阅读时获取带递归依赖链的完整代码上下文时，调用 CodePulse 本地 API 一次性获取目标文件及其依赖的大纲结构或含所有依赖的完整结构化代码文本。"
+description: "当需要跨文件分析代码依赖关系、理解模块架构、或在重构/阅读时获取带递归依赖链的完整代码上下文时，调用 CodePulse 本地 API 一次性获取目标文件及其依赖的大纲结构或含所有依赖的完整结构化代码。"
 ---
 
 # CodePulse API — AI 代码上下文获取工具
@@ -27,99 +27,114 @@ CodePulse 在本地运行 HTTP 服务，暴露 API 接口，让你能够**一次
 
 | 项目 | 说明 |
 |------|------|
-| **基础 URL** | `http://localhost:<port>`，未指定端口时默认 `13535` |
-| **健康检查** | `GET /api/v1/health` — 首次调用前确认服务可用 |
-| **路径格式** | 所有 `path` / `paths` 参数必须使用**操作系统完整绝对路径**（如 `D:/Projects/my-project/src/App.vue`） |
-| **交互式文档** | `http://localhost:<port>/api/v1/ui` |
+| **基础 URL** | `http://localhost:<port>`，默认端口 `13535` |
+| **路径格式** | 所有 `path` / `paths` 参数必须使用**操作系统绝对路径**（如 `H:\Projects\...\App.vue`） |
+| **请求方式** | 核心接口均使用 **POST** 请求，数据通过 JSON Body 传输 |
+| **⚠️ 路径转义** | 在 JSON Body 中，Windows 反斜杠必须双重转义（`H:\\Projects\\...`） |
+| **⚠️ Windows 环境** | PowerShell 中必须使用 `Invoke-RestMethod` 发起请求 |
 
 ---
 
 ## 📚 API 接口
 
-### 1. 生成依赖大纲结构（轻量快速）
+### 1. 生成依赖大纲（轻量，仅含文件路径和依赖列表）
 
-> 只需了解文件之间的依赖关系和模块层级，不需要读取实际代码时使用。
+> 只需了解文件之间的依赖关系和层级，不需要读取实际代码时使用。
 
 **`POST /api/v1/outlines/generate`**
 
+```powershell
+# 使用 PowerShell 发起请求示例
+$body = '{"paths":["H:\\Projects\\aibuild\\CodePulse\\src\\App.vue"],"maxDepth":3}'
+Invoke-RestMethod -Uri "http://localhost:13535/api/v1/outlines/generate" -Method Post -ContentType "application/json" -Body $body | ConvertTo-Json -Depth 10
+```
+
+**请求参数 (JSON)：**
+- `paths`: `string[]` 目标文件绝对路径列表（推荐使用）
+- `path`: `string` 单个目标文件绝对路径（可选）
+- `maxDepth`: `number` 依赖递归深度（默认值视后端配置而定）
+
+**返回结构：**
 ```json
 {
-  "paths": ["<绝对文件或目录路径>"],
-  "maxDepth": 3
+  "data": [
+    {
+      "path": "src/App.vue",
+      "absPath": "H:\\Projects\\...\\src\\App.vue",
+      "depth": 0,
+      "dependencies": ["src/components/Sidebar.vue", "src/composables/useTheme.ts"]
+    }
+  ],
+  "meta": { "count": 1, "timestamp": "..." }
 }
 ```
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `paths` | `string[]` | 要分析的入口文件或目录的绝对路径列表 |
-| `maxDepth` | `number` | 依赖递归解析的最大深度（默认向下递归） |
-
-**返回**：目标文件依赖的文件路径清单及嵌套层级关系。
-
 ---
 
-### 2. 生成完整代码上下文（核心接口）
+### 2. 生成完整代码上下文（含源码内容）
 
-> 需要读取目标文件及其依赖文件的完整代码内容时使用。返回已合并、排版清洗过的文本，可直接作为上下文。
+> 需要读取目标文件及其依赖文件的完整代码内容时使用。支持返回结构化数据或 LLM 友好的长文本。
 
 **`POST /api/v1/contexts/generate`**
 
-```json
-{
-  "paths": ["<绝对路径1>", "<绝对路径2>"],
-  "maxDepth": 2,
-  "format": "text",
-  "generateTree": true,
-  "enableMinimization": true,
-  "minimizationDepthThreshold": 2
-}
+```powershell
+# 获取 LLM 友好的格式化文本 (format: "text")
+$body = '{"paths":["H:\\Projects\\aibuild\\CodePulse\\src\\App.vue"],"format":"text"}'
+Invoke-RestMethod -Uri "http://localhost:13535/api/v1/contexts/generate" -Method Post -ContentType "application/json" -Body $body | ConvertTo-Json -Depth 10
 ```
+
+**关键请求参数 (JSON)：**
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `paths` | `string[]` | — | 入口文件的绝对路径列表 |
-| `maxDepth` | `number` | 递归 | 依赖挖掘深度。`0` = 仅文件本身 |
-| `format` | `string` | `"text"` | 设为 `"text"` 以获取为大模型阅读优化的纯文本 |
-| `generateTree` | `boolean` | `false` | 在输出顶部附带依赖结构树图 |
-| `enableMinimization` | `boolean` | `false` | 对较远层级的依赖自动压缩（只保留声明，省 Token） |
-| `minimizationDepthThreshold` | `number` | `2` | 从第 N 层依赖开始执行压缩 |
+| `paths` | `string[]` | — | **核心**，入口文件绝对路径列表 |
+| `format` | `"json" \| "text"` | `"json"` | `json` 返回节点列表；`text` 返回拼接好的完整长文本 |
+| `maxDepth` | `number` | `2` | 依赖递归深度 |
+| `enableMinimization` | `boolean` | `true` | 是否压缩深层依赖（保留定义，隐藏实现） |
+| `generateTree` | `boolean` | `false` | (仅 text) 是否在头部生成源码树结构图 |
 
-**返回示例**：
+**返回结构 (format: "json")：**
 ```json
 {
-  "text": "==== 项目依赖树 ===\n...\n==== 文件正文 ===\n...\n=== 依赖文件1 ===\n...",
-  "meta": { "count": 6, "length": 8432 }
+  "data": [
+    {
+      "path": "src/App.vue",
+      "content": "<template>...</template>...",
+      "absPath": "H:\\...",
+      "depth": 0,
+      "dependencies": [...]
+    }
+  ],
+  "meta": { "count": 5, "timestamp": "..." }
 }
 ```
 
-- `text`：直接采纳为上下文记忆的完整代码文本
-- `meta.count`：包含的文件总数
-- `meta.length`：文本总字符数
+**返回结构 (format: "text")：**
+```json
+{
+  "text": "File: src/App.vue\n---\n<content>\n...",
+  "meta": { "count": 5, "length": 12040, "timestamp": "..." }
+}
+```
 
 ---
 
-### 3. 清除解析缓存
+### 3. 系统接口
 
-> 当目标项目的代码刚发生过重构或大量变更时调用，避免获取到旧版数据。
-
-**`DELETE /api/v1/cache`**
+- **健康检查**: `GET /api/v1/health`
+- **清空缓存**: `DELETE /api/v1/cache` (当解析结果不符合预期时尝试)
 
 ---
 
 ## 🛠️ 标准操作流程
 
 ```
-1. 确认端口 → 默认 13535，或从用户会话中获取
-2. 健康检查 → GET http://localhost:13535/api/v1/health
-3. 获取上下文 → POST /api/v1/contexts/generate（常规场景）
-                或 POST /api/v1/outlines/generate（仅需结构）
-4. 使用返回的 text 作为当前任务的代码上下文
-5. 如果项目代码刚经历过大改动 → DELETE /api/v1/cache
-```
+1. 确定范围 → 仅需依赖树：POST /api/v1/outlines/generate
+              需获取代码：POST /api/v1/contexts/generate (推荐 format: "text")
 
-**curl 快速示例**：
-```bash
-curl -X POST http://localhost:13535/api/v1/contexts/generate \
-  -H "Content-Type: application/json" \
-  -d '{"paths":["D:/Projects/my-app/src/App.vue"],"maxDepth":2,"format":"text","generateTree":true}'
+2. 准备路径 → 获取当前工程目标文件的绝对路径（如 H:\Projects\...）
+
+3. 发起请求 → 使用 PowerShell 执行 Invoke-RestMethod
+
+4. 处理结果 → 解析 data 数组或直接阅读 text 文本内容
 ```
