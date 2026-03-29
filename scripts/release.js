@@ -8,7 +8,8 @@ import { execSync } from 'child_process';
  * Tauri 版本同步与自动发布脚本
  * 使用方式: 
  * 1. 自动同步 package.json 的版本: npm run release
- * 2. 指定版本号: npm run release 1.2.0
+ * 2. 指定版本号: npm run release 2.0.0
+ * 3. 仅同步配置文件版本号(不提交/Tag): npm run release sync 2.0.0
  */
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -31,14 +32,25 @@ function runCommand(command) {
   }
 }
 
-// 获取目标版本号
-let targetVersion = process.argv[2];
+// 获取参数并清理
+const rawArgs = process.argv.slice(2);
+const keywords = ['sync', '-s', '--sync'];
 
-// 如果没有传参，则读取 package.json 的版本作为基准
+const args = rawArgs.map(arg => arg.trim());
+// 宽松匹配标志位
+const syncOnly = 
+  process.argv.some(a => keywords.some(k => a.toLowerCase().includes(k))) || 
+  process.env.npm_config_sync === 'true' ||
+  args.some(arg => keywords.includes(arg.toLowerCase()));
+
+// 获取目标版本号 (排除以 - 开头和关键字)
+let targetVersion = args.find(arg => !arg.startsWith('-') && !keywords.includes(arg.toLowerCase()));
+
+// 如果没有指定版本，则读取 package.json 的版本作为基准
 if (!targetVersion) {
   const pkg = JSON.parse(fs.readFileSync(paths.packageJson, 'utf8'));
   targetVersion = pkg.version;
-  console.log(`[Release] 未指定版本，将使用 package.json 中的版本号: ${targetVersion}`);
+  console.log(`[Release] 未指定版本号，将使用 package.json 中的版本: ${targetVersion}`);
 }
 
 const vTag = `v${targetVersion}`;
@@ -73,6 +85,15 @@ function updateVersion() {
   fs.writeFileSync(paths.cargoToml, cargoContent);
   console.log('✅ Updated Cargo.toml');
 
+  // 4. 同步 Cargo.lock (确保版本号变更同步到 lock 文件，否则 git add . 无法捕获变化)
+  runCommand(`cargo update --manifest-path "${paths.cargoToml}" --offline -p codepulse`);
+  console.log('✅ Updated Cargo.lock');
+
+  if (syncOnly) {
+    console.log(`\n🚀 版本提示: 配置文件版本号已同步至 ${targetVersion}。开启了 --sync 模式，跳过 Git 操作。`);
+    return;
+  }
+
   console.log(`\n[Release] 2. 开始执行 Git 操作...`);
 
   // 获取当前分支名称
@@ -84,7 +105,7 @@ function updateVersion() {
   // 检查是否有变动需要提交
   const status = execSync('git status --porcelain', { encoding: 'utf8' }).trim();
   if (status) {
-    runCommand(`git commit -m "chore: release ${vTag}"`);
+    runCommand(`git commit -m "${vTag}"`);
   } else {
     console.log('[Release] 工作区干净，跳过 commit。');
   }
