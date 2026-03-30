@@ -101,7 +101,7 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
           { label: ".scss", value: "scss" },
           { label: ".less", value: "less" }
         ],
-        defaultValue: ["vue", "ts", "tsx", "js", "py", "json", "css", "scss"]
+        defaultValue: ["vue", "ts", "tsx", "js", "mjs", "rs", "py", "go", "java", "kt", "cpp", "c", "h", "cs", "php", "rb", "json", "md", "html", "css", "scss", "less"]
       },
       {
         id: "customIncludedTypes",

@@ -2,11 +2,11 @@ import { z } from '@hono/zod-openapi';
 
 const FileNodeSchema = z.object({
   path: z.string().openapi({ example: 'src/main.ts', description: '文件相对路径（相对于项目根目录的显示路径）' }),
-  content: z.string().openapi({ description: '文件全文内容或格式化后的文本视图' }),
+  content: z.string().openapi({ example: 'const a = 1;', description: '文件全文内容或格式化后的文本视图' }),
   absPath: z.string().openapi({ example: '/Users/dev/project/src/main.ts', description: '文件的物理绝对路径' }),
   depth: z.number().int().min(0).openapi({ example: 1, description: '文件在源码依赖树中的层级深度 (0 为主文件)' }),
-  dependencies: z.array(z.string()).openapi({ description: '该文件依赖的其它文件路径列表（显示路径）' }),
-  originId: z.string().optional().openapi({ description: '文件原始标识符，用于追踪节点来源' })
+  dependencies: z.array(z.string()).openapi({ example: ['src/utils.ts'], description: '该文件依赖的其它文件路径列表（显示路径）' }),
+  originId: z.string().optional().openapi({ example: 'node-12345', description: '文件原始标识符，用于追踪节点来源' })
 }).openapi('FileNode');
 
 export const GenerateContextBodySchema = z.object({
@@ -20,19 +20,19 @@ export const GenerateContextBodySchema = z.object({
   }),
   maxDepth: z.number().int().min(0).optional().openapi({ example: 2, description: '依赖解析的最大递归深度' }),
   ignoreExts: z.string().optional().openapi({ 
-    example: '.git,node_modules,dist', 
+    example: '.git, node_modules, dist, target', 
     description: '需要忽略的文件后缀或目录名，多个以逗号分隔' 
   }),
   ignoreDeepParse: z.string().optional().openapi({ 
-    example: 'package.json,*.test.ts',
+    example: 'package.json, tsconfig.json, *.test.ts',
     description: '需要忽略深度依赖解析（仅保留内容但不追踪其 import）的文件或后缀' 
   }),
   includedTypes: z.array(z.string()).optional().openapi({ 
-    example: ['ts', 'vue', 'js'], 
+    example: ['vue', 'ts', 'tsx', 'js'], 
     description: '包含在解析范围内的文件类型后缀列表' 
   }),
   projectRoots: z.string().optional().openapi({ 
-    example: 'D:/Projects/my-project',
+    example: 'D:/Projects/my-app, D:/Projects/common-lib',
     description: '可选的多个项目根目录配置（逗号分隔），用于辅助绝对路径的显示转换' 
   }),
   enableMinimization: z.boolean().optional().openapi({ 
@@ -49,13 +49,14 @@ export const GenerateContextBodySchema = z.object({
   }),
 
   // 格式化相关可选项
-  generateTree: z.boolean().optional().openapi({ description: '输出文本时，是否在头部生成源码树结构图' }),
-  generateRelationshipText: z.boolean().optional().openapi({ description: '输出文本时，是否生成文件间的依赖关系摘要' }),
-  highlightPrimaryFiles: z.boolean().optional().openapi({ description: '渲染时是否使用 [PRIMARY FILE] 标签标记用户直接选中的文件' }),
-  optimizePathDisplay: z.boolean().optional().openapi({ description: '是否通过提取公共前缀（<BASE_PATH>）来优化长路径的显示' }),
-  customPrompt: z.string().optional().openapi({ description: '注入到上下文底部的系统级自定义提示词' }),
-  userPrompt: z.string().optional().openapi({ description: '注入到上下文顶部的用户特定指令或需求描述' }),
+  generateTree: z.boolean().optional().openapi({ example: true, description: '输出文本时，是否在头部生成源码树结构图' }),
+  generateRelationshipText: z.boolean().optional().openapi({ example: true, description: '输出文本时，是否生成文件间的依赖关系摘要' }),
+  highlightPrimaryFiles: z.boolean().optional().openapi({ example: true, description: '渲染时是否使用 [PRIMARY FILE] 标签标记用户直接选中的文件' }),
+  optimizePathDisplay: z.boolean().optional().openapi({ example: false, description: '是否通过提取公共前缀（<BASE_PATH>）来优化长路径的显示' }),
+  customPrompt: z.string().optional().openapi({ example: '你是资深工程师，正在为我审查以下代码...', description: '注入到上下文底部的系统级自定义提示词' }),
+  userPrompt: z.string().optional().openapi({ example: 'Find the potential bugs', description: '注入到上下文顶部的用户特定指令或需求描述' }),
   longContextThreshold: z.number().int().min(0).optional().openapi({ 
+    example: 10000,
     description: '当内容长度超过此阈值时，自动调整 userPrompt 的布局位置' 
   }),
 
@@ -76,10 +77,10 @@ export const GenerateOutlineBodySchema = z.object({
     description: '待生成大纲的绝对路径列表' 
   }),
   maxDepth: z.number().int().min(0).optional().openapi({ example: 1, description: '依赖展开的最大深度' }),
-  ignoreExts: z.string().optional().openapi({ description: '需要忽略的文件后缀（逗号分隔）' }),
-  ignoreDeepParse: z.string().optional().openapi({ description: '需要忽略深度解析的文件后缀或目录（逗号分隔）' }),
-  includedTypes: z.array(z.string()).optional().openapi({ description: '包含在解析范围内的文件后缀列表' }),
-  projectRoots: z.string().optional().openapi({ description: '项目根目录配置（逗号分隔），用于优化显示路径' }),
+  ignoreExts: z.string().optional().openapi({ example: '.git, node_modules, dist, target', description: '需要忽略的文件后缀（逗号分隔）' }),
+  ignoreDeepParse: z.string().optional().openapi({ example: 'package.json, tsconfig.json, *.test.ts', description: '需要忽略深度解析的文件后缀或目录（逗号分隔）' }),
+  includedTypes: z.array(z.string()).optional().openapi({ example: ['vue', 'ts', 'tsx', 'js'], description: '包含在解析范围内的文件后缀列表' }),
+  projectRoots: z.string().optional().openapi({ example: 'D:/Projects/my-app, D:/Projects/common-lib', description: '项目根目录配置（逗号分隔），用于优化显示路径' }),
 }).openapi('GenerateOutlineRequest');
 
 export const RenderContextBodySchema = z.object({
@@ -87,13 +88,13 @@ export const RenderContextBodySchema = z.object({
   selectedPaths: z.array(z.string()).optional().openapi({ description: '被选中的主要文件路径列表，用于在结果中标记 [PRIMARY FILE]' }),
   
   // 格式化相关可选项
-  generateTree: z.boolean().optional().openapi({ description: '是否在输出文本头部生成源码树结构图' }),
-  generateRelationshipText: z.boolean().optional().openapi({ description: '是否生成文件间的依赖关系摘要' }),
-  highlightPrimaryFiles: z.boolean().optional().openapi({ description: '是否使用 [PRIMARY FILE] 标签标记 selectedPaths 中的文件' }),
-  optimizePathDisplay: z.boolean().optional().openapi({ description: '是否通过提取公共前缀（<BASE_PATH>）优化长路径显示' }),
-  customPrompt: z.string().optional().openapi({ description: '注入到上下文底部的系统级自定义提示词' }),
-  userPrompt: z.string().optional().openapi({ description: '注入到上下文顶部的用户特定指令' }),
-  longContextThreshold: z.number().int().min(0).optional().openapi({ description: '长内容触发 userPrompt 布局微调的字符长度阈值' }),
+  generateTree: z.boolean().optional().openapi({ example: true, description: '是否在输出文本头部生成源码树结构图' }),
+  generateRelationshipText: z.boolean().optional().openapi({ example: true, description: '是否生成文件间的依赖关系摘要' }),
+  highlightPrimaryFiles: z.boolean().optional().openapi({ example: true, description: '是否使用 [PRIMARY FILE] 标签标记 selectedPaths 中的文件' }),
+  optimizePathDisplay: z.boolean().optional().openapi({ example: false, description: '是否通过提取公共前缀（<BASE_PATH>）优化长路径显示' }),
+  customPrompt: z.string().optional().openapi({ example: '你是资深工程师，正在为我审查以下代码...', description: '注入到上下文底部的系统级自定义提示词' }),
+  userPrompt: z.string().optional().openapi({ example: 'Fix bugs', description: '注入到上下文顶部的用户特定指令' }),
+  longContextThreshold: z.number().int().min(0).optional().openapi({ example: 10000, description: '长内容触发 userPrompt 布局微调的字符长度阈值' }),
 }).openapi('RenderContextRequest');
 
 export const CommonMetaSchema = z.object({
@@ -105,22 +106,22 @@ export const CommonMetaSchema = z.object({
 export const ErrorResponseSchema = z.object({
   error: z.object({
     message: z.string().openapi({ example: 'Invalid request' }),
-    details: z.any().optional()
+    details: z.any().optional().openapi({ example: 'Parameter "path" is required' })
   })
 }).openapi('ErrorResponse');
 
 export const ContextResponseSchema = z.object({
   data: z.array(FileNodeSchema).optional(),
-  text: z.string().optional(),
+  text: z.string().optional().openapi({ example: 'Formatted code text content from the parsed files.' }),
   meta: CommonMetaSchema
 }).openapi('ContextResponse');
 
 export const OutlineResponseSchema = z.object({
   data: z.array(z.object({
-    path: z.string(),
-    absPath: z.string(),
-    depth: z.number(),
-    dependencies: z.array(z.string())
+    path: z.string().openapi({ example: 'src/main.ts' }),
+    absPath: z.string().openapi({ example: '/Users/dev/project/src/main.ts' }),
+    depth: z.number().int().openapi({ example: 0 }),
+    dependencies: z.array(z.string()).openapi({ example: ['src/utils.ts'] })
   })).openapi({ description: '大纲节点列表' }),
   meta: CommonMetaSchema
 }).openapi('OutlineResponse');
@@ -132,10 +133,10 @@ export const HealthResponseSchema = z.object({
 
 export const InfoResponseSchema = z.object({
   data: z.object({
-    name: z.string(),
-    version: z.string(),
-    description: z.string(),
-    routes: z.array(z.string())
+    name: z.string().openapi({ example: 'code-pulse-api' }),
+    version: z.string().openapi({ example: '1.0.0' }),
+    description: z.string().openapi({ example: 'CodePulse API Service' }),
+    routes: z.array(z.string()).openapi({ example: ['/api/v1/health', '/api/v1/info'] })
   }),
   meta: CommonMetaSchema
 }).openapi('SimpleMessageResponse');
