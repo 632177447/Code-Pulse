@@ -57,18 +57,20 @@ function isAbsolutePath(p: string) {
 function normalizePaths(input?: string[] | string, fallbackPath?: string) {
   const result: string[] = [];
 
+  const formatPath = (p: string) => p.trim().replace(/\\/g, '/');
+
   if (typeof fallbackPath === 'string' && fallbackPath.trim()) {
-    result.push(fallbackPath.trim());
+    result.push(formatPath(fallbackPath));
   }
 
   if (Array.isArray(input)) {
     input.forEach(item => {
       if (typeof item === 'string' && item.trim()) {
-        result.push(item.trim());
+        result.push(formatPath(item));
       }
     });
   } else if (typeof input === 'string') {
-    result.push(...splitTextList(input));
+    result.push(...splitTextList(input).map(formatPath));
   }
 
   return Array.from(new Set(result));
