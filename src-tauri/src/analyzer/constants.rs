@@ -73,4 +73,31 @@ pub const COMPONENT_LIB_PREFIXES: &[&str] = &[
     "vxe-",   // VXE-Table
     "dp-",    // DatePicker
     "naive-", // Naive UI alias
+    "arco-",  // ArcoDesign
+    "vxe-",   // VXE-Table
+];
+
+/// Rust 标准库与内置 Crate
+pub const RS_STD_LIBS: &[&str] = &["std", "core", "alloc", "proc_macro", "test", "panic", "unwind"];
+
+/// Python 常用内置模块
+pub const PY_STD_LIBS: &[&str] = &[
+    "os", "sys", "time", "pathlib", "json", "math", "re", "datetime", "itertools", "collections", 
+    "functools", "typing", "enum", "threading", "multiprocessing", "subprocess", "shutil", "urllib", 
+    "http", "unittest", "logging", "argparse", "pickle", "uuid", "abc", "contextlib", "glob"
+];
+
+/// Go 常用内置模块
+pub const GO_STD_LIBS: &[&str] = &[
+    "fmt", "os", "io", "time", "net", "http", "sync", "reflect", "runtime", "encoding", 
+    "context", "bytes", "math", "regexp", "container", "errors", "flag", "log", "sort", "strings"
+];
+
+/// Java/Kotlin 系统包前缀
+pub const JAVA_STD_LIBS: &[&str] = &["java", "javax", "sun", "oracle", "kotlin", "android"];
+
+/// Node.js 内置模块
+pub const NODE_STD_LIBS: &[&str] = &[
+    "fs", "path", "http", "https", "crypto", "os", "stream", "util", "events", "child_process", 
+    "cluster", "dns", "net", "readline", "url", "vm", "zlib", "v8", "perf_hooks", "worker_threads"
 ];

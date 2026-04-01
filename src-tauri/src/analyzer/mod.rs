@@ -83,7 +83,17 @@ pub fn analyze_dependencies(
         let p = Path::new(p_str);
         if !p.exists() { continue; }
         if p.is_dir() {
-            for entry in WalkDir::new(p).into_iter().filter_map(|e| e.ok()) {
+            for entry in WalkDir::new(p)
+                .into_iter()
+                .filter_entry(|e| {
+                    if e.file_type().is_dir() {
+                        !should_ignore(e.path(), &ignore_names, &ignore_extensions, &ignore_filenames, &ignore_regexes)
+                    } else {
+                        true
+                    }
+                })
+                .filter_map(|e| e.ok()) 
+            {
                 let e_path = entry.path();
                 if e_path.is_file() {
                     let ext = e_path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
@@ -131,7 +141,17 @@ pub fn analyze_dependencies(
             .as_ref();
 
         if path.is_dir() {
-            for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
+            for entry in WalkDir::new(path)
+                .into_iter()
+                .filter_entry(|e| {
+                    if e.file_type().is_dir() {
+                        !should_ignore(e.path(), &ignore_names, &ignore_extensions, &ignore_filenames, &ignore_regexes)
+                    } else {
+                        true
+                    }
+                })
+                .filter_map(|e| e.ok()) 
+            {
                 if let Some(ref h) = abort_handle {
                     if h.load(Ordering::SeqCst) {
                         return Ok(finalize_result(
