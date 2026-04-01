@@ -268,6 +268,21 @@ pub fn resolve_path(base_dir: &Path, import_path: &str, ext: &str, project_root:
         return None;
     }
 
+    // 忽略各语言标准库或内置模块
+    let is_std = match ext {
+        "rs" => RS_STD_LIBS.iter().any(|&lib| import_path == lib || import_path.starts_with(&format!("{}/", lib))),
+        "py" => PY_STD_LIBS.iter().any(|&lib| import_path == lib || import_path.starts_with(&format!("{}/", lib))),
+        "go" => GO_STD_LIBS.iter().any(|&lib| import_path == lib || import_path.starts_with(&format!("{}/", lib))),
+        e if JAVA_KT_FAMILY.contains(&e) => JAVA_STD_LIBS.iter().any(|&lib| import_path == lib || import_path.starts_with(&format!("{}/", lib))),
+        e if JS_TS_FAMILY.contains(&e) => {
+            import_path.starts_with("node:") || NODE_STD_LIBS.iter().any(|&lib| import_path == lib || import_path.starts_with(&format!("{}/", lib)))
+        }
+        _ => false,
+    };
+    if is_std {
+        return None;
+    }
+
     let extensions = match ext {
         e if JS_TS_FAMILY.contains(&e) => JS_TS_FAMILY.to_vec(),
         "py" => vec!["py"],
