@@ -57,24 +57,26 @@ export type ContextRequestInput = Omit<Partial<ContextRequest>, 'paths' | 'inclu
 
 export type ContextTextRequestInput = ContextRequestInput & Partial<ContextFormatOptions>;
 
+import { DEFAULT_APP_CONFIG } from '../../config/appSettings';
+
 export const DEFAULT_CONTEXT_REQUEST: ContextRequest = {
   paths: [],
-  maxDepth: 2,
-  ignoreExts: '.git, node_modules, dist, target, build, .vscode, .idea, .next, .nuxt, .output, .vercel, .github, __pycache__, .venv, bin, obj, *.lock, *.log, *.tmp, *.temp, *.png, *.jpg, *.jpeg, *.gif, *.svg, *.ico, *.webp, *.mp4, *.avi, *.mkv, *.mov, *.webm, *.mp3, *.wav, *.flac, *.aac, *.ogg, *.zip, *.tar, *.gz, *.7z, *.rar, *.exe, *.dll, *.so, *.dylib',
-  ignoreDeepParse: 'package.json, tsconfig.json, vite.config.ts, tauri.conf.json, README.md, Cargo.toml, go.mod, pom.xml, .env, *.test.ts, *.spec.ts',
-  includedTypes: ['vue', 'ts', 'tsx', 'js', 'py', 'json', 'css', 'scss'],
-  projectRoots: '',
-  enableMinimization: true,
-  minimizationThreshold: 8000,
-  minimizationDepthThreshold: 2
+  maxDepth: DEFAULT_APP_CONFIG.maxDepth,
+  ignoreExts: DEFAULT_APP_CONFIG.ignoreExts,
+  ignoreDeepParse: DEFAULT_APP_CONFIG.ignoreDeepParse,
+  includedTypes: [...DEFAULT_APP_CONFIG.includedTypes],
+  projectRoots: DEFAULT_APP_CONFIG.projectRoots,
+  enableMinimization: DEFAULT_APP_CONFIG.enableMinimization,
+  minimizationThreshold: DEFAULT_APP_CONFIG.minimizationThreshold,
+  minimizationDepthThreshold: DEFAULT_APP_CONFIG.minimizationDepthThreshold
 };
 
 export const DEFAULT_CONTEXT_FORMAT_OPTIONS: ContextFormatOptions = {
-  generateTree: true,
-  generateRelationshipText: true,
-  highlightPrimaryFiles: true,
-  optimizePathDisplay: false,
-  customPrompt: '',
+  generateTree: DEFAULT_APP_CONFIG.generateTree,
+  generateRelationshipText: DEFAULT_APP_CONFIG.generateRelationshipText,
+  highlightPrimaryFiles: DEFAULT_APP_CONFIG.highlightPrimaryFiles,
+  optimizePathDisplay: DEFAULT_APP_CONFIG.optimizePathDisplay,
+  customPrompt: DEFAULT_APP_CONFIG.customPrompt,
   userPrompt: '',
-  longContextThreshold: DEFAULT_CONTEXT_REQUEST.minimizationThreshold
+  longContextThreshold: DEFAULT_APP_CONFIG.minimizationThreshold
 };
