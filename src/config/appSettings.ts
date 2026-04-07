@@ -1,6 +1,5 @@
 import type { AppConfig, SettingGroup } from "../types";
 import { extractDefaultSettings } from "../components/common/SettingsModal/utils";
-import { apiServerManager } from "../services/apiServer";
 
 export const APP_CONFIG_STORAGE_KEY = "appConfig";
 
@@ -206,6 +205,7 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         onClick: async (settings: any) => {
           const port = settings?.apiPort || 13535;
           console.log("Restarting API Service at port:", port);
+          const { apiServerManager } = await import("../services/apiServer");
           await apiServerManager.start(port);
         }
       }
