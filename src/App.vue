@@ -80,9 +80,6 @@ onMounted(() => {
     }
   }
 
-  // 初始化 API Server 状态
-  apiServerManager.syncState(appConfig.apiEnabled, appConfig.apiPort);
-
   const savedSidebarWidth = localStorage.getItem("sidebarWidth");
   if (savedSidebarWidth) {
     const parsedWidth = Number(savedSidebarWidth);

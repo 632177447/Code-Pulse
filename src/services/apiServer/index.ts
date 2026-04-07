@@ -7,37 +7,62 @@ class ApiServerManager {
   private unlistenRequestEvent: UnlistenFn | null = null;
   private isRunning: boolean = false;
 
+  private currentPort: number | null = null;
+  private isProcessing: boolean = false;
+
   constructor() {}
 
   // 根据当前最新的全局设置，决定如何重启或停止 API Server 
   public async syncState(apiEnabled: boolean, apiPort: number): Promise<void> {
     if (apiEnabled) {
-      await this.start(apiPort);
+      // 只有开启且端口变化时才重启，或者当前没在运行
+      if (!this.isRunning || this.currentPort !== apiPort) {
+        await this.start(apiPort);
+      }
     } else {
-      await this.stop();
+      if (this.isRunning) {
+        await this.stop();
+      }
     }
   }
 
   // 触发 Rust 端的监听器启动事件，并挂载 Webview 请求响应处理器
-  public async start(port: number): Promise<void> {
-    if (this.isRunning) {
-      await this.stop();
-    }
+  public async start(port: number, isRetry: boolean = false): Promise<void> {
+    if (this.isProcessing && !isRetry) return;
+    this.isProcessing = true;
 
     try {
+      if (this.isRunning) {
+        // 如果端口一致则无需操作
+        if (this.currentPort === port) return;
+        await this.stop();
+      }
+
       await invoke('start_api_server', { port });
       
-      this.unlistenRequestEvent = await listen<ApiRequest>('api-request', async (event) => {
-        const req = event.payload;
-        const response = await this.dispatchToHono(req);
-        
-        await invoke('api_response', { id: req.id, response });
-      });
+      if (!this.unlistenRequestEvent) {
+        this.unlistenRequestEvent = await listen<ApiRequest>('api-request', async (event) => {
+          const req = event.payload;
+          const response = await this.dispatchToHono(req);
+          await invoke('api_response', { id: req.id, response });
+        });
+      }
 
       this.isRunning = true;
+      this.currentPort = port;
       console.log(`[ApiServerManager] Service successfully bound to port ${port}`);
     } catch (error) {
+      const errorStr = String(error);
+      // 10048 是端口占用错误，尝试延迟重试一次
+      if (!isRetry && errorStr.includes('10048')) {
+        console.warn(`[ApiServerManager] Port ${port} busy, retrying in 500ms...`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        this.isProcessing = false;
+        return this.start(port, true);
+      }
       console.error('[ApiServerManager] Failed to start service on rust backend:', error);
+    } finally {
+      this.isProcessing = false;
     }
   }
 
