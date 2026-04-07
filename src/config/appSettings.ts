@@ -182,7 +182,7 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         id: "apiEnabled",
         type: "switch",
         label: "启用核心 API 服务",
-        description: "开启后，您可以通过 HTTP 调用获取当前项目的依赖关系大纲或完整解析上下文。",
+        description: "开启后，您可以通过 API 调用获取指定项目文件的依赖关系大纲或完整解析上下文。",
         defaultValue: false
       },
       {
