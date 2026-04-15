@@ -19,6 +19,7 @@ export function useContextGeneration({ appConfig, filesList, userPrompt }: UseCo
   const currentRequestId = ref(0);
   let removeFileDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   let analysisDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let outputDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   const contextWorker = new ContextWorker();
 
@@ -86,6 +87,19 @@ export function useContextGeneration({ appConfig, filesList, userPrompt }: UseCo
       clearTimeout(analysisDebounceTimer);
       analysisDebounceTimer = null;
     }
+    if (outputDebounceTimer) {
+      clearTimeout(outputDebounceTimer);
+      outputDebounceTimer = null;
+    }
+  }
+
+  function scheduleUpdateOutputContext(delay = 500) {
+    if (outputDebounceTimer) {
+      clearTimeout(outputDebounceTimer);
+    }
+    outputDebounceTimer = setTimeout(() => {
+      updateOutputContext();
+    }, delay);
   }
 
   function scheduleProcessPaths(delay = 0, reason: ProcessReason = "analysis") {
@@ -113,7 +127,13 @@ export function useContextGeneration({ appConfig, filesList, userPrompt }: UseCo
 
   watch(uiFormattingTrigger, () => {
     if (appConfig.autoGenerate && fileNodes.value.length > 0) {
-      updateOutputContext();
+      scheduleUpdateOutputContext(300);
+    }
+  });
+
+  watch(userPrompt, () => {
+    if (appConfig.autoGenerate && fileNodes.value.length > 0) {
+      scheduleUpdateOutputContext(500);
     }
   });
 
