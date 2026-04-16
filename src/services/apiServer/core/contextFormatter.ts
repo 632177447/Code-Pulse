@@ -203,6 +203,7 @@ export function formatContextContent(fileNodes: ContextRenderableNode[], options
     generateLineNumbers,
     longContextThreshold,
     optimizePathDisplay,
+    omitFileBlocks,
     userPrompt
   } = options;
 
@@ -238,6 +239,17 @@ export function formatContextContent(fileNodes: ContextRenderableNode[], options
   }
 
   const pendingUserPrompt = userPrompt.trim();
+  
+  if (omitFileBlocks) {
+    if (pendingUserPrompt) {
+      finalContext += '========================================\n';
+      finalContext += '[USER REQUIREMENTS]\n';
+      finalContext += '========================================\n';
+      finalContext += pendingUserPrompt + '\n\n';
+    }
+    return finalContext;
+  }
+
   const blocksContent = fileNodes.map(node => {
     let displayContent = node.content;
 

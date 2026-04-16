@@ -33,6 +33,7 @@ export interface ContextFormatOptions {
   highlightPrimaryFiles: boolean;
   generateLineNumbers: boolean;
   optimizePathDisplay: boolean;
+  omitFileBlocks: boolean;
   customPrompt: string;
   userPrompt: string;
   longContextThreshold: number;
@@ -78,6 +79,7 @@ export const DEFAULT_CONTEXT_FORMAT_OPTIONS: ContextFormatOptions = {
   highlightPrimaryFiles: DEFAULT_APP_CONFIG.highlightPrimaryFiles,
   generateLineNumbers: DEFAULT_APP_CONFIG.generateLineNumbers,
   optimizePathDisplay: DEFAULT_APP_CONFIG.optimizePathDisplay,
+  omitFileBlocks: DEFAULT_APP_CONFIG.omitFileBlocks,
   customPrompt: DEFAULT_APP_CONFIG.customPrompt,
   userPrompt: '',
   longContextThreshold: DEFAULT_APP_CONFIG.minimizationThreshold

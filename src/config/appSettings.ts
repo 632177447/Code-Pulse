@@ -52,6 +52,13 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         defaultValue: false
       },
       {
+        id: "omitFileBlocks",
+        type: "switch",
+        label: "仅输出结构大纲",
+        description: "开启后，输出结果将不包含具体文件块及文件内容，仅保留文件树视图和依赖关系说明。",
+        defaultValue: false
+      },
+      {
         id: "customPrompt",
         type: "textarea",
         label: "全局引导提示词 (Prompt)",

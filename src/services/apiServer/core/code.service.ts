@@ -117,6 +117,7 @@ function createFormatOptions(input: Partial<ContextFormatOptions> = {}): Context
     highlightPrimaryFiles: input.highlightPrimaryFiles ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.highlightPrimaryFiles,
     generateLineNumbers: input.generateLineNumbers ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.generateLineNumbers,
     optimizePathDisplay: input.optimizePathDisplay ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.optimizePathDisplay,
+    omitFileBlocks: input.omitFileBlocks ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.omitFileBlocks,
     customPrompt: input.customPrompt ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.customPrompt,
     userPrompt: input.userPrompt ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.userPrompt,
     longContextThreshold: input.longContextThreshold ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.longContextThreshold

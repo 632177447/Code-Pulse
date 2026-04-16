@@ -25,6 +25,7 @@ export interface AppConfig {
   highlightPrimaryFiles: boolean;
   generateLineNumbers: boolean;
   optimizePathDisplay: boolean;
+  omitFileBlocks: boolean;
   autoGenerate: boolean;
   customIncludedTypes: string;
   projectRoots: string;
