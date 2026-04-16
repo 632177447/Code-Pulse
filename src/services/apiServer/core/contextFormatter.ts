@@ -125,6 +125,52 @@ function buildPrimaryTagContent(content: string, isPrimary: boolean | undefined)
   ].filter(Boolean).join('\n');
 }
 
+function addLineNumbers(content: string) {
+  if (!content) {
+    return content;
+  }
+
+  const hasTrailingNewline = content.endsWith('\n');
+  const contentWithoutTrailingNewline = hasTrailingNewline ? content.slice(0, -1) : content;
+  const lines = contentWithoutTrailingNewline.split('\n');
+
+  if (lines.length === 1 && lines[0] === '') {
+    return content;
+  }
+
+  const lineNumberWidth = Math.max(String(lines.length).length, 4);
+  const numberedContent = lines
+    .map((line, index) => `L${String(index + 1).padStart(lineNumberWidth, '0')} | ${line}`)
+    .join('\n');
+
+  return hasTrailingNewline ? `${numberedContent}\n` : numberedContent;
+}
+
+function buildLineNumberedContent(content: string) {
+  const contentStartMarker = '[CONTENT START]\n';
+  const contentEndMarker = '\n[CONTENT END]';
+  const contentStartIndex = content.indexOf(contentStartMarker);
+  const contentEndIndex = content.lastIndexOf(contentEndMarker);
+
+  if (contentStartIndex === -1 || contentEndIndex === -1) {
+    return content;
+  }
+
+  const actualContentStartIndex = contentStartIndex + contentStartMarker.length;
+  const rawContent = content.slice(actualContentStartIndex, contentEndIndex);
+
+  if (!rawContent) {
+    return content;
+  }
+
+  return [
+    content.slice(0, actualContentStartIndex),
+    '[LINE NUMBERS]: 1-based, format "L0001 | code"\n',
+    addLineNumbers(rawContent),
+    content.slice(contentEndIndex)
+  ].join('');
+}
+
 function isSelectedPath(absPath: string, selectedPaths: string[]) {
   const normalizedAbsPath = normalizePath(absPath);
 
@@ -154,6 +200,7 @@ export function formatContextContent(fileNodes: ContextRenderableNode[], options
     generateRelationshipText,
     generateTree,
     highlightPrimaryFiles,
+    generateLineNumbers,
     longContextThreshold,
     optimizePathDisplay,
     userPrompt
@@ -208,6 +255,10 @@ export function formatContextContent(fileNodes: ContextRenderableNode[], options
           }
         }
       }
+    }
+
+    if (generateLineNumbers) {
+      displayContent = buildLineNumberedContent(displayContent);
     }
 
     return buildPrimaryTagContent(displayContent, highlightPrimaryFiles ? node.isPrimary : false);

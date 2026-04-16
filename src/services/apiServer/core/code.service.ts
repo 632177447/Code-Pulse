@@ -115,6 +115,7 @@ function createFormatOptions(input: Partial<ContextFormatOptions> = {}): Context
     generateTree: input.generateTree ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.generateTree,
     generateRelationshipText: input.generateRelationshipText ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.generateRelationshipText,
     highlightPrimaryFiles: input.highlightPrimaryFiles ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.highlightPrimaryFiles,
+    generateLineNumbers: input.generateLineNumbers ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.generateLineNumbers,
     optimizePathDisplay: input.optimizePathDisplay ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.optimizePathDisplay,
     customPrompt: input.customPrompt ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.customPrompt,
     userPrompt: input.userPrompt ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.userPrompt,
