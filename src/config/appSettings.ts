@@ -38,6 +38,13 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         defaultValue: true
       },
       {
+        id: "generateLineNumbers",
+        type: "switch",
+        label: "为内容添加行序号",
+        description: "为每个文件内容区的每一行添加 1-based 行序号，便于 AI 精确引用与理解。",
+        defaultValue: false
+      },
+      {
         id: "optimizePathDisplay",
         type: "switch",
         label: "优化路径显示",

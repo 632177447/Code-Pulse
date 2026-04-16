@@ -74,6 +74,7 @@ export function useContextGeneration({ appConfig, filesList, userPrompt }: UseCo
       generateTree: appConfig.generateTree,
       generateRelationshipText: appConfig.generateRelationshipText,
       highlightPrimaryFiles: appConfig.highlightPrimaryFiles,
+      generateLineNumbers: appConfig.generateLineNumbers,
       optimizePathDisplay: appConfig.optimizePathDisplay
     });
   });
@@ -205,6 +206,7 @@ export function useContextGeneration({ appConfig, filesList, userPrompt }: UseCo
       generateTree: appConfig.generateTree,
       generateRelationshipText: appConfig.generateRelationshipText,
       highlightPrimaryFiles: appConfig.highlightPrimaryFiles,
+      generateLineNumbers: appConfig.generateLineNumbers,
       optimizePathDisplay: appConfig.optimizePathDisplay,
       customPrompt: appConfig.customPrompt,
       userPrompt: userPrompt.value,

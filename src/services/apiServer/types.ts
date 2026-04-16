@@ -31,6 +31,7 @@ export interface ContextFormatOptions {
   generateTree: boolean;
   generateRelationshipText: boolean;
   highlightPrimaryFiles: boolean;
+  generateLineNumbers: boolean;
   optimizePathDisplay: boolean;
   customPrompt: string;
   userPrompt: string;
@@ -75,6 +76,7 @@ export const DEFAULT_CONTEXT_FORMAT_OPTIONS: ContextFormatOptions = {
   generateTree: DEFAULT_APP_CONFIG.generateTree,
   generateRelationshipText: DEFAULT_APP_CONFIG.generateRelationshipText,
   highlightPrimaryFiles: DEFAULT_APP_CONFIG.highlightPrimaryFiles,
+  generateLineNumbers: DEFAULT_APP_CONFIG.generateLineNumbers,
   optimizePathDisplay: DEFAULT_APP_CONFIG.optimizePathDisplay,
   customPrompt: DEFAULT_APP_CONFIG.customPrompt,
   userPrompt: '',

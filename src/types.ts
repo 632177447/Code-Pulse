@@ -23,6 +23,7 @@ export interface AppConfig {
   generateTree: boolean;
   generateRelationshipText: boolean;
   highlightPrimaryFiles: boolean;
+  generateLineNumbers: boolean;
   optimizePathDisplay: boolean;
   autoGenerate: boolean;
   customIncludedTypes: string;
