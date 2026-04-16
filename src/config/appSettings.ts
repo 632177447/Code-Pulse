@@ -144,7 +144,7 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         id: "enableMinimization",
         type: "switch",
         label: "上下文压缩",
-        description: "自动移除间接引用文件的函数实现，仅保留定义，大幅节省上下文空间。",
+        description: "移除代码中的函数实现，仅保留定义，大幅节省上下文空间。",
         defaultValue: true
       },
       {
