@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { SettingItem } from './types';
 
 const props = defineProps<{
@@ -10,10 +10,49 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:modelValue']);
 
-const value = computed({
+const ctrlValue = computed({
   get: () => props.modelValue,
   set: (val) => emit('update:modelValue', val)
 });
+
+// 获取选项值的辅助函数：如果 value 为空，则回退到 label
+const getOptValue = (opt: any) => {
+  return opt.value === undefined ? opt.label : opt.value;
+};
+
+// Select 组件状态与逻辑
+const isSelectOpen = ref(false);
+
+const isMultiple = computed(() => {
+  return props.config.type === 'select' && props.config.multiple;
+});
+
+const selectLabel = computed(() => {
+  if (props.config.type !== 'select') return '';
+  if (isMultiple.value) {
+    if (!Array.isArray(ctrlValue.value) || ctrlValue.value.length === 0) return props.config.placeholder || '';
+    return props.config.options.filter(o => ctrlValue.value.includes(getOptValue(o))).map(o => o.label).join(', ');
+  } else {
+    const opt = props.config.options.find(o => getOptValue(o) === ctrlValue.value);
+    return opt ? opt.label : (props.config.placeholder || '');
+  }
+});
+
+const handleSelect = (val: any) => {
+  if (isMultiple.value) {
+    let current = Array.isArray(ctrlValue.value) ? [...ctrlValue.value] : [];
+    const idx = current.indexOf(val);
+    if (idx > -1) {
+      current.splice(idx, 1);
+    } else {
+      current.push(val);
+    }
+    ctrlValue.value = current;
+  } else {
+    ctrlValue.value = val;
+    isSelectOpen.value = false;
+  }
+};
 </script>
 
 <template>
@@ -21,14 +60,14 @@ const value = computed({
   <div v-if="config.type === 'slider'" :class="['w-full', config.label ? 'space-y-2' : '']">
     <div class="flex items-center justify-between">
         <label v-if="config.label" :for="config.id" class="block text-[11px] font-black tracking-widest text-app-text-dim">{{ config.label }}</label>
-        <span class="text-xs text-center font-black font-mono text-app-primary bg-app-primary-light px-4 py-0.5 rounded-lg border border-app-primary/10 tracking-widest">{{ value }}</span>
+        <span class="text-xs text-center font-black font-mono text-app-primary bg-app-primary-light px-4 py-0.5 rounded-lg border border-app-primary/10 tracking-widest">{{ ctrlValue }}</span>
     </div>
     <p v-if="config.description" class="text-[11px] text-app-text-mute pb-1 leading-relaxed italic opacity-80">{{ config.description }}</p>
     <div class="flex items-center space-x-4">
       <input 
         :id="config.id" 
         type="range" 
-        v-model.number="value"
+        v-model.number="ctrlValue"
         :min="config.min || 0" 
         :max="config.max || 100"
         class="flex-1 w-full h-1 bg-app-border rounded-full appearance-none cursor-pointer accent-app-primary"
@@ -45,7 +84,7 @@ const value = computed({
           v-if="config.inputType === 'number'"
           :id="config.id"
           type="number" 
-          v-model.number="value"
+          v-model.number="ctrlValue"
           :step="config.step || 'any'"
           class="w-full bg-app-surface border border-app-border rounded-xl px-4 py-2.5 text-[13px] text-app-text font-medium placeholder:text-app-text-mute focus:outline-none focus:border-app-primary/50 focus:ring-4 focus:ring-app-primary/5 transition-all shadow-app-sm"
           :placeholder="config.placeholder || ''"
@@ -54,7 +93,7 @@ const value = computed({
           v-else
           :id="config.id"
           :type="config.inputType || 'text'" 
-          v-model="value"
+          v-model="ctrlValue"
           class="w-full bg-app-surface border border-app-border rounded-xl px-4 py-2.5 text-[13px] text-app-text font-medium placeholder:text-app-text-mute focus:outline-none focus:border-app-primary/50 focus:ring-4 focus:ring-app-primary/5 transition-all shadow-app-sm"
           :placeholder="config.placeholder || ''"
         />
@@ -73,11 +112,82 @@ const value = computed({
     <p v-if="config.description" class="text-[11px] text-app-text-mute pb-1 leading-relaxed italic opacity-80">{{ config.description }}</p>
     <textarea 
       :id="config.id"
-      v-model="value"
+      v-model="ctrlValue"
       :rows="config.rows || 3"
       class="w-full bg-app-surface border border-app-border rounded-2xl px-4 py-2.5 text-[13px] text-app-text font-medium placeholder:text-app-text-mute focus:outline-none focus:border-app-primary/50 focus:ring-4 focus:ring-app-primary/5 transition-all shadow-app-sm resize-y custom-scrollbar leading-relaxed"
       :placeholder="config.placeholder || ''"
     ></textarea>
+  </div>
+  
+  <!-- Select-->
+  <div v-else-if="config.type === 'select'" :class="['w-full', config.label ? 'space-y-2' : '']">
+    <label v-if="config.label" :for="config.id" class="block text-[11px] font-black tracking-widest text-app-text-dim">{{ config.label }}</label>
+    <p v-if="config.description" class="text-[11px] text-app-text-mute pb-1 leading-relaxed italic opacity-80">{{ config.description }}</p>
+    <div class="relative">
+      <div 
+        @click="isSelectOpen = !isSelectOpen"
+        class="w-full bg-app-surface border border-app-border rounded-xl px-4 py-2.5 text-[13px] font-medium shadow-app-sm cursor-pointer transition-all flex items-center justify-between"
+        :class="[
+          isSelectOpen ? 'border-app-primary/50 ring-4 ring-app-primary/5' : 'hover:border-app-border-focus',
+          !selectLabel ? 'text-app-text-mute' : 'text-app-text'
+        ]"
+      >
+        <span class="truncate pr-4">{{ selectLabel || config.placeholder || '请选择' }}</span>
+        
+        <div class="shrink-0 transition-transform duration-300 text-app-text-mute" :class="{ 'rotate-180': isSelectOpen }">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </div>
+      
+      <!-- 遮罩层，用于点击外部关闭 -->
+      <div v-if="isSelectOpen" class="fixed inset-0 z-40" @click="isSelectOpen = false"></div>
+      
+      <!-- 下拉列表 -->
+      <transition 
+        enter-active-class="transition ease-out duration-200 origin-top" 
+        enter-from-class="opacity-0 scale-y-95" 
+        enter-to-class="opacity-100 scale-y-100" 
+        leave-active-class="transition ease-in duration-150 origin-top" 
+        leave-from-class="opacity-100 scale-y-100" 
+        leave-to-class="opacity-0 scale-y-95"
+      >
+        <div 
+          v-if="isSelectOpen"
+          class="absolute z-50 w-full mt-2 bg-app-surface border border-app-border rounded-xl shadow-app-xl py-2 max-h-60 overflow-y-auto custom-scrollbar"
+          style="transform-origin: top"
+        >
+          <div 
+            v-for="opt in (config.type === 'select' ? config.options : [])" 
+            :key="getOptValue(opt)"
+            @click="handleSelect(getOptValue(opt))"
+            class="px-4 py-2.5 text-[13px] font-medium cursor-pointer transition-colors flex items-center justify-between group hover:bg-app-bg"
+            :class="[
+               (isMultiple ? (Array.isArray(ctrlValue) && ctrlValue.includes(getOptValue(opt))) : ctrlValue === getOptValue(opt))
+                 ? 'text-app-primary bg-app-primary-light/30' 
+                 : 'text-app-text'
+            ]"
+          >
+            <span class="truncate group-hover:text-app-primary transition-colors">{{ opt.label }}</span>
+            <svg 
+              v-if="(isMultiple ? (Array.isArray(ctrlValue) && ctrlValue.includes(getOptValue(opt))) : ctrlValue === getOptValue(opt))"
+              xmlns="http://www.w3.org/2000/svg" 
+              class="h-4 w-4 shrink-0 text-app-primary" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          
+          <div v-if="config.type === 'select' && (!config.options || config.options.length === 0)" class="px-4 py-3 text-[13px] text-app-text-mute text-center italic">
+            无可用选项
+          </div>
+        </div>
+      </transition>
+    </div>
   </div>
 
   <!-- Switch -->
@@ -87,7 +197,7 @@ const value = computed({
       <span v-if="config.description" class="text-[11px] text-app-text-mute italic mt-1 leading-relaxed opacity-80">{{ config.description }}</span>
     </div>
     <div class="relative shrink-0">
-      <input type="checkbox" v-model="value" class="sr-only peer">
+      <input type="checkbox" v-model="ctrlValue" class="sr-only peer">
       <div class="w-10 h-5.5 bg-app-border rounded-full peer peer-checked:bg-app-primary transition-all after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4.5 after:w-4.5 after:transition-all after:shadow-app-sm peer-checked:after:translate-x-4.5"></div>
     </div>
   </label>
@@ -97,9 +207,9 @@ const value = computed({
     <label v-if="config.label" class="block text-[11px] font-black tracking-widest text-app-text-dim">{{ config.label }}</label>
     <p v-if="config.description" class="text-[11px] text-app-text-mute pb-1 leading-relaxed italic opacity-80">{{ config.description }}</p>
     <div class="flex flex-wrap gap-4">
-      <label v-for="opt in config.options" :key="opt.value" class="flex items-center space-x-2.5 cursor-pointer group">
+      <label v-for="opt in config.options" :key="getOptValue(opt)" class="flex items-center space-x-2.5 cursor-pointer group">
         <div class="relative w-4.5 h-4.5 flex items-center justify-center">
-            <input type="radio" :value="opt.value" v-model="value" class="w-full h-full accent-app-primary bg-app-surface border-app-border transition-all">
+            <input type="radio" :value="getOptValue(opt)" v-model="ctrlValue" class="w-full h-full accent-app-primary bg-app-surface border-app-border transition-all">
         </div>
         <span class="text-xs font-black tracking-widest text-app-text-mute group-hover:text-app-text transition-colors">{{ opt.label }}</span>
       </label>
@@ -135,22 +245,22 @@ const value = computed({
     >
       <label 
         v-for="opt in config.options" 
-        :key="opt.value" 
+        :key="getOptValue(opt)" 
         class="flex items-center space-x-2 px-3 py-2 rounded-xl border transition-all cursor-pointer group shadow-app-sm"
-        :class="Array.isArray(value) && value.includes(opt.value) 
+        :class="Array.isArray(ctrlValue) && ctrlValue.includes(getOptValue(opt)) 
           ? 'bg-app-primary-light border-app-primary/40 ring-2 ring-app-primary/5' 
           : 'bg-app-surface border-app-border hover:border-app-border-focus hover:bg-app-bg'"
         :title="opt.label"
       >
-        <input type="checkbox" :value="opt.value" v-model="value" class="w-3.5 h-3.5 accent-app-primary bg-app-surface border-app-border rounded">
+        <input type="checkbox" :value="getOptValue(opt)" v-model="ctrlValue" class="w-3.5 h-3.5 accent-app-primary bg-app-surface border-app-border rounded">
         <span class="text-[10px] font-black tracking-widest text-app-text-mute group-hover:text-app-text truncate transition-colors">{{ opt.label }}</span>
       </label>
     </div>
 
     <!-- Default Multi-line wrap mode -->
     <div v-else class="flex flex-wrap gap-6">
-      <label v-for="opt in config.options" :key="opt.value" class="flex items-center space-x-2.5 cursor-pointer group">
-        <input type="checkbox" :value="opt.value" v-model="value" class="w-4 h-4 accent-app-primary bg-app-surface border-app-border rounded transition-all">
+      <label v-for="opt in config.options" :key="getOptValue(opt)" class="flex items-center space-x-2.5 cursor-pointer group">
+        <input type="checkbox" :value="getOptValue(opt)" v-model="ctrlValue" class="w-4 h-4 accent-app-primary bg-app-surface border-app-border rounded transition-all">
         <span class="text-[11px] font-black tracking-widest text-app-text-mute group-hover:text-app-text transition-colors">{{ opt.label }}</span>
       </label>
     </div>

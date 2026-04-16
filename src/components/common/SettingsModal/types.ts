@@ -1,4 +1,4 @@
-export type SettingControlType = 'slider' | 'input' | 'textarea' | 'switch' | 'radio' | 'checkbox' | 'button';
+export type SettingControlType = 'slider' | 'input' | 'textarea' | 'switch' | 'radio' | 'checkbox' | 'button' | 'select';
 
 export interface SettingItemBase {
   id: string;
@@ -33,16 +33,28 @@ export interface SwitchSettingItem extends SettingItemBase {
   type: 'switch';
 }
 
+export interface SettingOption {
+  label: string;
+  value?: any;
+}
+
 export interface RadioSettingItem extends SettingItemBase {
   type: 'radio';
-  options: Array<{ label: string; value: any }>;
+  options: SettingOption[];
 }
 
 export interface CheckboxSettingItem extends SettingItemBase {
   type: 'checkbox';
-  options: Array<{ label: string; value: any }>;
+  options: SettingOption[];
   layout?: 'grid' | 'flex';
   columns?: number;
+}
+
+export interface SelectSettingItem extends SettingItemBase {
+  type: 'select';
+  options: SettingOption[];
+  multiple?: boolean;
+  placeholder?: string;
 }
 
 export interface ButtonSettingItem extends SettingItemBase {
@@ -59,6 +71,7 @@ export type SettingItem =
   | SwitchSettingItem 
   | RadioSettingItem 
   | CheckboxSettingItem
+  | SelectSettingItem
   | ButtonSettingItem;
 
 export interface SettingGroup {
