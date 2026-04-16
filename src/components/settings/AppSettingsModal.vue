@@ -30,5 +30,6 @@ const appConfig = computed({
     v-model:show="isSettingsOpen" 
     v-model:settings="appConfig"
     :groups="APP_SETTINGS_GROUPS" 
+    height="800px"
   />
 </template>

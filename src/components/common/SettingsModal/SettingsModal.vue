@@ -7,6 +7,10 @@ const props = defineProps<{
   show: boolean;
   settings: any;
   groups: SettingGroup[];
+  width?: string;
+  height?: string;
+  maxWidth?: string;
+  maxHeight?: string;
 }>();
 
 const emit = defineEmits(['update:show', 'update:settings', 'save', 'cancel']);
@@ -56,7 +60,10 @@ const isItemVisible = (item: SettingItem): boolean => {
 
 <template>
   <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-app-text/20 backdrop-blur-md transition-all animate-in fade-in duration-300" @click.self="handleCancel">
-    <div class="bg-app-surface border border-app-border rounded-[32px] shadow-app-xl w-full max-w-4xl max-h-[90vh] flex flex-col transform transition-all overflow-hidden animate-in zoom-in-95 duration-500">
+    <div 
+      class="bg-app-surface border border-app-border rounded-[32px] shadow-app-xl w-full max-w-4xl max-h-[90vh] flex flex-col transform transition-all overflow-hidden animate-in zoom-in-95 duration-500"
+      :style="{ width, height, maxWidth, maxHeight }"
+    >
       <!-- Header Area -->
       <div class="px-7 py-4 border-b border-app-border flex justify-between items-center bg-app-surface shrink-0">
         <div class="flex flex-col">
