@@ -1,7 +1,8 @@
 /// 所有支持解析并包含在分析结果中的文件扩展名
 pub const ALL_SUPPORTED_EXTS: &[&str] = &[
     "js", "mjs", "jsx", "ts", "tsx", "vue", "svelte", "py", "rs", "go",
-    "java", "kt", "c", "cpp", "h", "hpp", "cs", "php", "rb", "css", "scss", "less"
+    "java", "kt", "c", "cpp", "h", "hpp", "cs", "php", "rb", "css", "scss", "less",
+    "json", "html", "md"
 ];
 
 /// JavaScript/TypeScript 及其相关框架（用于依赖分析）

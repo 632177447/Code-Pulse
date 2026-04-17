@@ -408,7 +408,10 @@ fn extract_dependencies_by_regex(content: &str, ext: &str) -> Vec<String> {
                     } else if s.starts_with("self/") {
                         s = s.replacen("self/", "./", 1);
                     }
-                    deps.push(s);
+                    let normalized = s.trim_end_matches('/').to_string();
+                    if !normalized.is_empty() {
+                        deps.push(normalized);
+                    }
                 }
             }
         }
@@ -658,6 +661,27 @@ use App\Services\DingTalk as DingTalkService;
                 "./bootstrap.php".to_string(),
                 "./helpers.php".to_string(),
                 "App/Services/DingTalk".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn extract_dependencies_should_support_rust_re_exports_and_group_use() {
+        let content = r#"
+pub use types::*;
+use bridge::handle_bridge_request;
+use handlers::{
+    handle_abort_context,
+    handle_health,
+};
+"#;
+
+        assert_eq!(
+            extract_dependencies(content, "rs"),
+            vec![
+                "types".to_string(),
+                "bridge/handle_bridge_request".to_string(),
+                "handlers".to_string(),
             ]
         );
     }

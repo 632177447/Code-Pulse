@@ -29,7 +29,7 @@ fn get_path_alias_cache() -> &'static Mutex<HashMap<PathBuf, Vec<PathAlias>>> {
 fn sanitize_import_path(import_path: &str) -> &str {
     let trimmed = import_path.trim();
     let end = trimmed.find(|c| c == '?' || c == '#').unwrap_or(trimmed.len());
-    &trimmed[..end]
+    trimmed[..end].trim_end_matches(|c| c == '/' || c == '\\')
 }
 
 fn append_extension(path: &Path, ext: &str) -> PathBuf {
@@ -349,9 +349,9 @@ pub fn resolve_path(base_dir: &Path, import_path: &str, ext: &str, project_root:
         None
     };
 
-    let resolve_from_aliases = || -> Option<PathBuf> {
+    let resolve_from_aliases = |candidate_import: &str| -> Option<PathBuf> {
         for alias in load_path_aliases(project_root) {
-            let Some(matched) = match_alias_pattern(&alias.pattern, import_path) else {
+            let Some(matched) = match_alias_pattern(&alias.pattern, candidate_import) else {
                 continue;
             };
 
@@ -367,26 +367,50 @@ pub fn resolve_path(base_dir: &Path, import_path: &str, ext: &str, project_root:
         None
     };
 
-    if import_path.starts_with("crate/") {
-        check_target(&project_root.join("src").join(&import_path[6..]))
-    } else if import_path.starts_with("@/") {
-        check_target(&project_root.join("src").join(&import_path[2..]))
-    } else if import_path.starts_with("~/") {
-        check_target(&project_root.join(&import_path[2..]))
-    } else if import_path.starts_with("/") {
-        check_target(&project_root.join(&import_path[1..]))
-    } else if import_path.starts_with(".") {
-        check_target(&base_dir.join(import_path))
-    } else {
-        if let Some(res) = resolve_from_aliases() {
-            Some(res)
-        } else if let Some(res) = check_target(&base_dir.join(import_path)) {
-            Some(res)
-        } else if let Some(res) = check_target(&project_root.join(import_path)) {
-            Some(res)
+    let resolve_candidate = |candidate_import: &str| -> Option<PathBuf> {
+        if candidate_import.starts_with("crate/") {
+            check_target(&project_root.join("src").join(&candidate_import[6..]))
+        } else if candidate_import.starts_with("@/") {
+            check_target(&project_root.join("src").join(&candidate_import[2..]))
+        } else if candidate_import.starts_with("~/") {
+            check_target(&project_root.join(&candidate_import[2..]))
+        } else if candidate_import.starts_with("/") {
+            check_target(&project_root.join(&candidate_import[1..]))
+        } else if candidate_import.starts_with(".") {
+            check_target(&base_dir.join(candidate_import))
         } else {
-            check_target(&project_root.join("src").join(import_path))
+            if let Some(res) = resolve_from_aliases(candidate_import) {
+                Some(res)
+            } else if let Some(res) = check_target(&base_dir.join(candidate_import)) {
+                Some(res)
+            } else if let Some(res) = check_target(&project_root.join(candidate_import)) {
+                Some(res)
+            } else {
+                check_target(&project_root.join("src").join(candidate_import))
+            }
         }
+    };
+
+    if ext == "rs" {
+        let mut candidate = import_path;
+        loop {
+            if let Some(resolved) = resolve_candidate(candidate) {
+                return Some(resolved);
+            }
+
+            let Some((parent, _)) = candidate.rsplit_once('/') else {
+                break;
+            };
+            let trimmed_parent = parent.trim_end_matches('/');
+            if trimmed_parent.is_empty() {
+                break;
+            }
+            candidate = trimmed_parent;
+        }
+
+        None
+    } else {
+        resolve_candidate(import_path)
     }
 }
 
@@ -468,6 +492,22 @@ mod tests {
         fs::write(&target, "").unwrap();
 
         let resolved = resolve_path(&base_dir, "./parser", "rs", &root);
+
+        assert_eq!(resolved, Some(target.clone()));
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn resolve_path_should_fallback_to_rust_module_file_for_item_imports() {
+        let root = create_test_root("resolve-rust-item");
+        let base_dir = root.join("src").join("api_server");
+        fs::create_dir_all(&base_dir).unwrap();
+
+        let target = base_dir.join("bridge.rs");
+        fs::write(&target, "").unwrap();
+
+        let resolved = resolve_path(&base_dir, "bridge/handle_bridge_request", "rs", &root);
 
         assert_eq!(resolved, Some(target.clone()));
 

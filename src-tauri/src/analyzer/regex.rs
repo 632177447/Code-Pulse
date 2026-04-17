@@ -133,7 +133,7 @@ pub fn get_py_from_re() -> &'static Regex {
 
 pub fn get_rs_re() -> &'static Regex {
     RS_RE.get_or_init(|| {
-        Regex::new(r#"(?m)^\s*(?:(?:pub(?:\([^)]*\))?\s+)?mod|use)\s+([a-zA-Z0-9_:]+)"#).unwrap()
+        Regex::new(r#"(?m)^\s*(?:pub(?:\([^)]*\))?\s+)?(?:mod|use)\s+([a-zA-Z0-9_:]+)"#).unwrap()
     })
 }
 
