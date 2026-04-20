@@ -38,6 +38,7 @@ export interface ContextFormatOptions {
   userPrompt: string;
   longContextThreshold: number;
   enableCommandOutput: boolean;
+  projectRoots?: string;
 }
 
 export interface OutlineNode {

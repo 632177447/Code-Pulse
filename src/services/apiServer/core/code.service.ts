@@ -120,7 +120,9 @@ function createFormatOptions(input: Partial<ContextFormatOptions> = {}): Context
     omitFileBlocks: input.omitFileBlocks ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.omitFileBlocks,
     customPrompt: input.customPrompt ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.customPrompt,
     userPrompt: input.userPrompt ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.userPrompt,
-    longContextThreshold: input.longContextThreshold ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.longContextThreshold
+    longContextThreshold: input.longContextThreshold ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.longContextThreshold,
+    enableCommandOutput: input.enableCommandOutput ?? DEFAULT_CONTEXT_FORMAT_OPTIONS.enableCommandOutput,
+    projectRoots: input.projectRoots
   };
 }
 
@@ -231,7 +233,8 @@ export const CodeService = {
 
   async getContextText(input: ContextTextRequestInput = {}) {
     const request = createContextRequest(input);
-    const formatOptions = createFormatOptions(input);
+    const projectRoots = request.projectRoots.trim();
+    const formatOptions = createFormatOptions({ ...input, projectRoots });
     const nodes = await generateFileNodes(request);
     const text = formatContextContent(createRenderableContextNodes(nodes, request.paths), formatOptions);
 

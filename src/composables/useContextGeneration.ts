@@ -200,6 +200,7 @@ export function useContextGeneration({ appConfig, filesList, userPrompt }: UseCo
       requestId: nextRequestId,
       fileNodes: fileNodes.value.map(node => ({
         path: node.path,
+        absPath: node.absPath,
         content: node.content,
         depth: node.depth,
         dependencies: [...node.dependencies],
@@ -214,7 +215,8 @@ export function useContextGeneration({ appConfig, filesList, userPrompt }: UseCo
       customPrompt: appConfig.customPrompt,
       userPrompt: userPrompt.value,
       longContextThreshold: appConfig.minimizationThreshold,
-      enableCommandOutput: appConfig.enableCommandOutput
+      enableCommandOutput: appConfig.enableCommandOutput,
+      projectRoots: appConfig.projectRoots.trim()
     });
   }
 
