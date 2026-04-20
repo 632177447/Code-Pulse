@@ -36,9 +36,11 @@ const handleConfirm = () => {
 
 const handleKeydown = (e: KeyboardEvent) => {
   if (props.modelValue && e.key === 'Enter') {
-    // 阻止默认行为（防止触发其他按钮或表单提交）
     e.preventDefault();
     handleConfirm();
+  } else if (props.modelValue && e.key === 'Escape') {
+    e.preventDefault();
+    handleClose();
   }
 };
 
@@ -52,9 +54,9 @@ onUnmounted(() => {
 
 const getTypeClasses = () => {
   switch (props.type) {
-    case 'danger': return 'bg-red-500 hover:bg-red-600 focus:ring-red-500';
-    case 'warning': return 'bg-amber-500 hover:bg-amber-600 focus:ring-amber-500';
-    default: return 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500';
+    case 'danger': return 'bg-app-rose text-white hover:opacity-90 shadow-app-rose/20';
+    case 'warning': return 'bg-amber-500 text-white hover:opacity-90 shadow-amber-500/20';
+    default: return 'bg-app-text text-app-bg hover:bg-app-primary hover:text-white shadow-app-primary/10';
   }
 };
 </script>
@@ -69,57 +71,62 @@ const getTypeClasses = () => {
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
-      <div v-if="modelValue" class="fixed inset-0 z-9999 overflow-y-auto">
-        <!-- 背景遮罩 -->
-        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" @click="handleClose"></div>
+      <div v-if="modelValue" class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-0">
+        
+        <div class="absolute inset-0 bg-app-text/20 backdrop-blur-md transition-opacity" @click="handleClose"></div>
 
-        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-          <Transition
-            enter-active-class="ease-out duration-300"
-            enter-from-class="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-            enter-to-class="opacity-100 translate-y-0 sm:scale-100"
-            leave-active-class="ease-in duration-200"
-            leave-from-class="opacity-100 translate-y-0 sm:scale-100"
-            leave-to-class="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+        <Transition
+          enter-active-class="ease-out duration-300"
+          enter-from-class="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+          enter-to-class="opacity-100 translate-y-0 sm:scale-100"
+          leave-active-class="ease-in duration-200"
+          leave-from-class="opacity-100 translate-y-0 sm:scale-100"
+          leave-to-class="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+          appear
+        >
+          <div
+            v-if="modelValue"
+            class="relative bg-app-surface border border-app-border rounded-[32px] shadow-app-xl w-full max-w-md flex flex-col transform transition-all overflow-hidden sm:my-8"
           >
-            <div
-              class="relative transform overflow-hidden rounded-xl bg-slate-900 border border-slate-700/50 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md"
-            >
-              <div class="p-6">
-                <div class="sm:flex sm:items-start">
-                  <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                    <h3 class="text-xl font-bold leading-6 text-slate-100 mb-4" id="modal-title">
-                      {{ title }}
-                    </h3>
-                    <div class="mt-2">
-                      <p class="text-sm text-slate-400 whitespace-pre-wrap leading-relaxed">
-                        {{ message }}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="bg-slate-800/50 px-6 py-4 flex flex-row-reverse gap-3">
-                <button
-                  type="button"
-                  class="inline-flex min-w-[80px] justify-center rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900"
-                  :class="getTypeClasses()"
-                  @click="handleConfirm"
-                >
-                  {{ confirmText }}
-                </button>
-                <button
-                  type="button"
-                  class="inline-flex min-w-[80px] justify-center rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 shadow-sm ring-1 ring-inset ring-slate-600 hover:bg-slate-600 transition-all"
-                  @click="handleClose"
-                >
-                  {{ cancelText }}
-                </button>
-              </div>
+            
+            <div class="px-7 py-5 border-b border-app-border flex justify-between items-center bg-app-surface shrink-0">
+              <h3 class="text-xl font-black text-app-text tracking-tight flex items-center" id="modal-title">
+                {{ title }}
+              </h3>
+              <button @click="handleClose" class="text-app-text-mute hover:text-app-text transition-all p-2 rounded-2xl hover:bg-app-bg cursor-pointer group -mr-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-          </Transition>
-        </div>
+            
+            
+            <div class="p-7 flex-1">
+              <p class="text-sm text-app-text-mute whitespace-pre-wrap leading-relaxed font-medium">
+                {{ message }}
+              </p>
+            </div>
+            
+            
+            <div class="px-7 py-5 border-t border-app-border flex justify-end shrink-0 gap-3 bg-app-surface">
+              <button
+                type="button"
+                class="px-6 py-2.5 text-app-text-dim hover:text-app-text font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all border border-app-border hover:bg-app-bg cursor-pointer shadow-sm active:scale-95"
+                @click="handleClose"
+              >
+                {{ cancelText }}
+              </button>
+              <button
+                type="button"
+                class="px-8 py-2.5 font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all active:scale-95 cursor-pointer shadow-xl"
+                :class="getTypeClasses()"
+                @click="handleConfirm"
+              >
+                {{ confirmText }}
+              </button>
+            </div>
+          </div>
+        </Transition>
       </div>
     </Transition>
   </Teleport>
