@@ -189,7 +189,7 @@ function buildCommandOutputPrompt() {
     '',
     'Ensure your JSON is valid and the "search" text in "patch" actions is unique and exists in the target file.',
     'CRITICAL WARNING: All "path" and "target" fields MUST be strictly ABSOLUTE PATHS (e.g., D:/project/src/file.ts).',
-    'DO NOT use relative paths starting with src/ or ./ under any circumstances. Refer to [PROJECT ROOT] and [FILE PATH] for the correct absolute prefix.',
+    'DO NOT use relative paths starting with src/ or ./ under any circumstances. Refer to [BASE PATH], [PROJECT ROOT], and [FILE PATH] for the correct absolute prefix.',
     ''
   ].join('\n');
 }
