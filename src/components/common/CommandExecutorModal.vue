@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 const props = defineProps<{
   show: boolean;
-  projectRoots: string;
+  allowedWritePaths: string;
 }>();
 
 const emit = defineEmits(['update:show']);
@@ -39,7 +39,9 @@ const runCommands = async () => {
       if (matchJson) jsonToParse = matchJson[1].trim();
     }
 
-    const roots = props.projectRoots
+    // 仅使用 allowedWritePaths，如果为空则没有任何目录权限
+    const rawRoots = props.allowedWritePaths.trim();
+    const roots = rawRoots
       .split(/[,\n\r]/)
       .map(s => s.trim())
       .filter(s => s.length > 0);
@@ -88,7 +90,7 @@ const runCommands = async () => {
             placeholder='[
   {
     "action": "patch",
-    "path": "src/components/Example.vue",
+    "path": "absolute/path/to/file.ts",
     "search": "old string",
     "replace": "new string"
   }

@@ -82,7 +82,7 @@ export const GenerateOutlineBodySchema = z.object({
   ignoreExts: z.string().optional().openapi({ example: '.git, node_modules, dist, target', description: '需要忽略的文件后缀（逗号分隔）' }),
   ignoreDeepParse: z.string().optional().openapi({ example: 'package.json, tsconfig.json, *.test.ts', description: '需要忽略深度解析的文件后缀或目录（逗号分隔）' }),
   includedTypes: z.array(z.string()).optional().openapi({ example: ['vue', 'ts', 'tsx', 'js'], description: '包含在解析范围内的文件后缀列表' }),
-  projectRoots: z.string().optional().openapi({ example: 'D:/Projects/my-app, D:/Projects/common-lib', description: '项目根目录配置（逗号分隔），用于优化显示路径' }),
+  projectRoots: z.string().optional().openapi({ example: 'D:/Projects/my-project', description: '项目根目录配置（逗号分隔），用于优化显示路径' }),
 }).openapi('GenerateOutlineRequest');
 
 export const RenderContextBodySchema = z.object({

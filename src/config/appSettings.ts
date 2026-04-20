@@ -232,6 +232,22 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
       }
     ]
   },
+  {
+    id: "security",
+    title: "权限安全",
+    colorClass: "text-red-400",
+    items: [
+      {
+        id: "allowedWritePaths",
+        type: "textarea",
+        label: "指令允许的写入权限",
+        description: "设置 AI 自动化指令允许写入或修改的绝对路径。可以用逗号或换行分隔。留空则表示禁止所有目录的写入权限。",
+        placeholder: "D:/Projects/my-project",
+        rows: 3,
+        defaultValue: ""
+      }
+    ]
+  },
 ];
 
 export const DEFAULT_APP_CONFIG: AppConfig = extractDefaultSettings(APP_SETTINGS_GROUPS) as AppConfig;
