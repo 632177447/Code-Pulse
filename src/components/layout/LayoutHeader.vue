@@ -22,7 +22,7 @@ const emit = defineEmits<{
       <button
         @click="emit('openCommands')"
         class="p-2.5 bg-app-surface hover:bg-app-surface-hover text-app-text-dim hover:text-app-primary rounded-2xl transition-all duration-500 shadow-app-sm border border-app-border cursor-pointer group"
-        title="执行 AI 指令 (Run AI Commands)"
+        title="执行 PulseCommand 指令 (Run PulseCommand)"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />

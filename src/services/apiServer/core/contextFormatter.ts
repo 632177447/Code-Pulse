@@ -4,6 +4,7 @@ import type { ContextFormatOptions } from '../types';
 
 export interface ContextRenderableNode {
   path: string;
+  absPath?: string;
   content: string;
   depth: number;
   dependencies: string[];
@@ -204,6 +205,7 @@ function isSelectedPath(absPath: string, selectedPaths: string[]) {
 export function createRenderableContextNodes(fileNodes: FileNode[], selectedPaths: string[]) {
   return fileNodes.map(node => ({
     path: node.path,
+    absPath: node.absPath,
     content: node.content,
     depth: node.depth,
     dependencies: [...node.dependencies],
@@ -229,8 +231,10 @@ export function formatContextContent(fileNodes: ContextRenderableNode[], options
     enableCommandOutput
   } = options;
 
-  const basePath = optimizePathDisplay ? getDisplayBasePath(fileNodes.map(node => node.path)) : '';
-  const displayFileNodes: ContextRenderableNode[] = basePath
+  const basePath = getDisplayBasePath(fileNodes.map(node => node.path));
+  const absBasePath = getDisplayBasePath(fileNodes.map(node => node.absPath || node.path));
+
+  const displayFileNodes: ContextRenderableNode[] = (optimizePathDisplay && basePath)
     ? fileNodes.map(node => ({
         ...node,
         path: replacePathWithSymbol(node.path, basePath),
@@ -239,6 +243,28 @@ export function formatContextContent(fileNodes: ContextRenderableNode[], options
     : fileNodes;
 
   let finalContext = '';
+  
+  // 自动从文件节点推导实际的项目根目录，避免直接显示设置中无关的路径
+  const actualRoots = new Set<string>();
+  fileNodes.forEach(node => {
+    if (node.absPath && node.path) {
+      const normAbs = node.absPath.replace(/\\/g, '/');
+      const normRel = node.path.replace(/\\/g, '/');
+      if (normAbs.endsWith(normRel)) {
+        let root = normAbs.substring(0, normAbs.length - normRel.length);
+        root = root.replace(/^\/\/(\?|\\)\//, '').replace(/\/+$/, '');
+        if (root) actualRoots.add(root);
+      }
+    }
+  });
+
+  const projectPathInfo = Array.from(actualRoots).sort().join(', ');
+  if (projectPathInfo) {
+    finalContext += '========================================\n';
+    finalContext += '[PROJECT ROOT]\n';
+    finalContext += '========================================\n';
+    finalContext += projectPathInfo + '\n\n';
+  }
 
   if (generateTree) {
     finalContext += buildTreeText(displayFileNodes.map(node => node.path), basePath);
@@ -287,7 +313,7 @@ export function formatContextContent(fileNodes: ContextRenderableNode[], options
         const lineEndIndex = node.content.indexOf('\n', lineContentStart);
         if (lineEndIndex !== -1) {
           const fullPath = node.content.slice(lineContentStart, lineEndIndex).trim();
-          const displayPath = replacePathWithSymbol(fullPath, basePath);
+          const displayPath = replacePathWithSymbol(fullPath, absBasePath || basePath);
           if (displayPath !== fullPath) {
             displayContent = node.content.slice(0, lineContentStart) + displayPath + node.content.slice(lineEndIndex);
           }

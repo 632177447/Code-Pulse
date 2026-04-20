@@ -10,16 +10,15 @@ export const BASE_PATH_SYMBOL = '<BASE_PATH>';
 export const normalizePath = (p: string) => {
   if (typeof p !== 'string' || !p) return '';
   return p.replace(/\\/g, '/')
+          .replace(/^\/\/(\?|\\)\//, '') // 处理 //?/ 或 //\/ 这种转义后的前缀
           .toLowerCase()
           .trim()
-          .replace(/^\\\\?\\/, '')
-          .replace(/^\/\/\?\//, '')
           .replace(/\/+$/, '');
 };
 
 export const getDisplayBasePath = (paths: string[]) => {
   const normalizedPaths = paths
-    .map(path => path.replace(/\\/g, '/').trim().replace(/\/+$/, ''))
+    .map(path => path.replace(/\\/g, '/').replace(/^\/\/(\?|\\)\//, '').trim().replace(/\/+$/, ''))
     .filter(path => path.length > 0);
 
   if (normalizedPaths.length === 0) {
@@ -41,11 +40,22 @@ export const getDisplayBasePath = (paths: string[]) => {
     }
   }
 
-  if (sharedCount <= 1) {
+  if (sharedCount === 0) {
     return '';
   }
 
-  return directorySegmentsList[0].slice(0, sharedCount - 1).join('/') + '/';
+  const firstPath = normalizedPaths[0];
+  const isWindowsAbsolute = /^[a-zA-Z]:/.test(firstPath);
+  const isUnixAbsolute = firstPath.startsWith('/');
+  const isAbsolute = isWindowsAbsolute || isUnixAbsolute;
+
+  // 对于绝对路径，至少需要 2 个层级（避免仅匹配到盘符或根目录）
+  if (isAbsolute && sharedCount <= 1) {
+    return '';
+  }
+
+  const base = directorySegmentsList[0].slice(0, sharedCount).join('/');
+  return (isUnixAbsolute ? '/' : '') + base + (base ? '/' : '');
 };
 
 export const stripDisplayBasePath = (path: string, basePath: string) => {
