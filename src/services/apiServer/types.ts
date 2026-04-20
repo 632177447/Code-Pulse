@@ -37,6 +37,7 @@ export interface ContextFormatOptions {
   customPrompt: string;
   userPrompt: string;
   longContextThreshold: number;
+  enableCommandOutput: boolean;
 }
 
 export interface OutlineNode {
@@ -82,5 +83,6 @@ export const DEFAULT_CONTEXT_FORMAT_OPTIONS: ContextFormatOptions = {
   omitFileBlocks: DEFAULT_APP_CONFIG.omitFileBlocks,
   customPrompt: DEFAULT_APP_CONFIG.customPrompt,
   userPrompt: '',
-  longContextThreshold: DEFAULT_APP_CONFIG.minimizationThreshold
+  longContextThreshold: DEFAULT_APP_CONFIG.minimizationThreshold,
+  enableCommandOutput: DEFAULT_APP_CONFIG.enableCommandOutput
 };

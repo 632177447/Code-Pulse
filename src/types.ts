@@ -34,4 +34,5 @@ export interface AppConfig {
   minimizationDepthThreshold: number;
   apiEnabled: boolean;
   apiPort: number;
+  enableCommandOutput: boolean;
 }
