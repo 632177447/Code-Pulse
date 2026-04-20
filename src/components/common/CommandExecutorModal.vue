@@ -142,7 +142,7 @@ const runCommands = async () => {
       <!-- Body -->
       <div class="p-8 flex-1 flex flex-col min-h-0 space-y-6 overflow-hidden">
         <div class="flex-1 flex flex-col min-h-0">
-          <label class="block text-[12px] font-black tracking-[0.2em] opacity-40 mb-3 ml-1 shrink-0">粘贴 AI 返回的 PulseCommand 指令以执行自动化修改</label>
+          <label class="block text-[12px] font-black tracking-[0.2em] opacity-40 mb-3 ml-1 shrink-0">运行 AI 返回的 PulseCommand 指令以执行自动化修改</label>
           <textarea
             v-model="commandsJson"
             placeholder='[
