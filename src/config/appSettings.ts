@@ -59,6 +59,13 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         defaultValue: false
       },
       {
+        id: "enableCommandOutput",
+        type: "switch",
+        label: "自动化命令输出",
+        description: "在上下文头部添加指令，引导 AI 以可直接运行的结构化 JSON 格式输出修复方案，并提供 PowerShell 执行示例。",
+        defaultValue: false
+      },
+      {
         id: "customPrompt",
         type: "textarea",
         label: "全局引导提示词 (Prompt)",

@@ -171,6 +171,49 @@ function buildLineNumberedContent(content: string) {
   ].join('');
 }
 
+function buildCommandOutputPrompt() {
+  return [
+    '========================================',
+    '[OUTPUT FORMAT: POWERSHELL AUTOMATION]',
+    '========================================',
+    'As the "enableCommandOutput" option is active, you MUST provide your solution as a JSON array of commands inside a ```json_commands``` markdown block.',
+    '',
+    '## Command Data Structure',
+    '[',
+    '  { "action": "write", "path": "src/app.ts", "content": "..." },',
+    '  { "action": "patch", "path": "src/utils.ts", "search": "old snippet", "replace": "new snippet" },',
+    '  { "action": "delete", "path": "temp.js" },',
+    '  { "action": "move", "path": "old.ts", "target": "new.ts" }',
+    ']',
+    '',
+    '## Execution Instructions',
+    'The user will use the following PowerShell script to execute your JSON commands. Ensure your JSON is valid and the "search" text in "patch" actions is unique and exists in the target file.',
+    '',
+    '```powershell',
+    '$json = Get-Clipboard | ConvertFrom-Json # User copies the json_commands block',
+    'foreach ($cmd in $json) {',
+    '    $path = $cmd.path',
+    '    switch ($cmd.action) {',
+    '        "write" {',
+    '            $dir = Split-Path $path; if ($dir -and !(Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }',
+    '            [System.IO.File]::WriteAllText($path, $cmd.content)',
+    '            Write-Host "Done: Write $path" -FG Green',
+    '        }',
+    '        "patch" {',
+    '            $c = [System.IO.File]::ReadAllText($path)',
+    '            $new = $c.Replace($cmd.search, $cmd.replace)',
+    '            [System.IO.File]::WriteAllText($path, $new)',
+    '            Write-Host "Done: Patch $path" -FG Cyan',
+    '        }',
+    '        "delete" { Remove-Item $path -Force; Write-Host "Done: Delete $path" -FG Red }',
+    '        "move" { Move-Item $path $cmd.target -Force; Write-Host "Done: Move $path to $($cmd.target)" -FG Yellow }',
+    '    }',
+    '}',
+    '```',
+    ''
+  ].join('\n');
+}
+
 function isSelectedPath(absPath: string, selectedPaths: string[]) {
   const normalizedAbsPath = normalizePath(absPath);
 
@@ -204,7 +247,8 @@ export function formatContextContent(fileNodes: ContextRenderableNode[], options
     longContextThreshold,
     optimizePathDisplay,
     omitFileBlocks,
-    userPrompt
+    userPrompt,
+    enableCommandOutput
   } = options;
 
   const basePath = optimizePathDisplay ? getDisplayBasePath(fileNodes.map(node => node.path)) : '';
@@ -236,6 +280,10 @@ export function formatContextContent(fileNodes: ContextRenderableNode[], options
     finalContext += '[SYSTEM SETTINGS]\n';
     finalContext += '========================================\n';
     finalContext += customPrompt.trim() + '\n\n';
+  }
+
+  if (enableCommandOutput) {
+    finalContext += buildCommandOutputPrompt() + '\n';
   }
 
   const pendingUserPrompt = userPrompt.trim();

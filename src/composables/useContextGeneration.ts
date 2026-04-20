@@ -76,7 +76,8 @@ export function useContextGeneration({ appConfig, filesList, userPrompt }: UseCo
       highlightPrimaryFiles: appConfig.highlightPrimaryFiles,
       generateLineNumbers: appConfig.generateLineNumbers,
       optimizePathDisplay: appConfig.optimizePathDisplay,
-      omitFileBlocks: appConfig.omitFileBlocks
+      omitFileBlocks: appConfig.omitFileBlocks,
+      enableCommandOutput: appConfig.enableCommandOutput
     });
   });
 
@@ -213,6 +214,7 @@ export function useContextGeneration({ appConfig, filesList, userPrompt }: UseCo
       customPrompt: appConfig.customPrompt,
       userPrompt: userPrompt.value,
       longContextThreshold: appConfig.minimizationThreshold,
+      enableCommandOutput: appConfig.enableCommandOutput
     });
   }
 

@@ -60,6 +60,7 @@ export const GenerateContextBodySchema = z.object({
     example: 10000,
     description: '当内容长度超过此阈值时，自动调整 userPrompt 的布局位置' 
   }),
+  enableCommandOutput: z.boolean().optional().openapi({ example: false, description: '是否在上下文中注入自动化命令输出格式规范' }),
 
   // 输出格式要求
   format: z.enum(['json', 'text']).optional().default('json').openapi({ 
@@ -97,6 +98,7 @@ export const RenderContextBodySchema = z.object({
   customPrompt: z.string().optional().openapi({ example: '你是资深工程师，正在为我审查以下代码...', description: '注入到上下文底部的系统级自定义提示词' }),
   userPrompt: z.string().optional().openapi({ example: 'Fix bugs', description: '注入到上下文顶部的用户特定指令' }),
   longContextThreshold: z.number().int().min(0).optional().openapi({ example: 10000, description: '长内容触发 userPrompt 布局微调的字符长度阈值' }),
+  enableCommandOutput: z.boolean().optional().openapi({ example: false, description: '是否在上下文中注入自动化命令输出格式规范' }),
 }).openapi('RenderContextRequest');
 
 export const CommonMetaSchema = z.object({
