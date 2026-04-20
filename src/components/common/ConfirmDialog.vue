@@ -71,7 +71,7 @@ const getTypeClasses = () => {
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
-      <div v-if="modelValue" class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-0">
+      <div v-if="modelValue" class="fixed inset-0 z-9999 flex items-center justify-center p-4 sm:p-0">
         
         <div class="absolute inset-0 bg-app-text/20 backdrop-blur-md transition-opacity" @click="handleClose"></div>
 
