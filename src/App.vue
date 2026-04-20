@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import AppSettingsModal from "./components/settings/AppSettingsModal.vue";
+import CommandExecutorModal from "./components/common/CommandExecutorModal.vue";
 import LayoutGenerateControl from "./components/layout/LayoutGenerateControl.vue";
 import LayoutHeader from "./components/layout/LayoutHeader.vue";
 import LayoutInputSection from "./components/layout/LayoutInputSection.vue";
@@ -18,6 +19,7 @@ const version = pkg.version;
 
 const filesList = ref<FileListItem[]>([]);
 const isSettingsOpen = ref(false);
+const isCommandsOpen = ref(false);
 const userPrompt = ref("");
 const isEditing = ref(false);
 const sidebarWidth = ref(320);
@@ -128,7 +130,10 @@ function stopResizeSidebar() {
 
 <template>
   <main class="h-screen flex flex-col items-center p-6 selection:bg-app-primary/10 relative overflow-y-auto">
-    <LayoutHeader @open-settings="isSettingsOpen = true" />
+    <LayoutHeader 
+      @open-settings="isSettingsOpen = true" 
+      @open-commands="isCommandsOpen = true"
+    />
 
     <LayoutInputSection
       v-model:userPrompt="userPrompt"
@@ -166,6 +171,11 @@ function stopResizeSidebar() {
       v-model:show="isSettingsOpen" 
       :settings="appConfig"
       @update:settings="val => Object.assign(appConfig, val)"
+    />
+
+    <CommandExecutorModal
+      v-model:show="isCommandsOpen"
+      :projectRoots="appConfig.projectRoots"
     />
 
     <LayoutVersionInfo :version="version" />

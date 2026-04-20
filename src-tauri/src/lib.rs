@@ -98,6 +98,84 @@ async fn api_response(state: tauri::State<'_, api_server::ApiServerState>, id: S
     Ok(())
 }
 
+#[derive(serde::Deserialize)]
+#[serde(tag = "action")]
+enum AiCommand {
+    #[serde(rename = "write")]
+    Write { path: String, content: String },
+    #[serde(rename = "patch")]
+    Patch { path: String, search: String, replace: String },
+    #[serde(rename = "delete")]
+    Delete { path: String },
+    #[serde(rename = "move")]
+    Move { path: String, target: String },
+}
+
+fn resolve_safe_path(path_str: &str, project_roots: &[String]) -> Result<std::path::PathBuf, String> {
+    let path = Path::new(path_str);
+    
+    // 防止路径包含 .. 导致越权访问
+    if path.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+        return Err(format!("Permission denied (traversal): {}", path_str));
+    }
+
+    if path.is_absolute() {
+        if project_roots.iter().any(|root| path.starts_with(Path::new(root))) {
+            Ok(path.to_path_buf())
+        } else {
+            Err(format!("Permission denied (outside root): {}", path_str))
+        }
+    } else {
+        // 如果是相对路径，拼接到第一个项目根目录
+        if let Some(root) = project_roots.first() {
+            Ok(Path::new(root).join(path))
+        } else {
+            Err(format!("Permission denied (no roots): {}", path_str))
+        }
+    }
+}
+
+#[tauri::command]
+async fn execute_ai_commands(commands_json: String, project_roots: Vec<String>) -> Result<(), String> {
+    let commands: Vec<AiCommand> = serde_json::from_str(&commands_json)
+        .map_err(|e| format!("Invalid JSON format: {}", e))?;
+
+    for cmd in commands {
+        match cmd {
+            AiCommand::Write { path, content } => {
+                let safe_path = resolve_safe_path(&path, &project_roots)?;
+                if let Some(parent) = safe_path.parent() {
+                    fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {}", e))?;
+                }
+                fs::write(safe_path, content).map_err(|e| format!("Failed to write file: {}", e))?;
+            }
+            AiCommand::Patch { path, search, replace } => {
+                let safe_path = resolve_safe_path(&path, &project_roots)?;
+                let content = fs::read_to_string(&safe_path).map_err(|e| format!("Failed to read file: {}", e))?;
+                let new_content = content.replace(&search, &replace);
+                if content == new_content && !search.is_empty() {
+                    return Err(format!("Search string not found in file: {}", path));
+                }
+                fs::write(&safe_path, new_content).map_err(|e| format!("Failed to update file: {}", e))?;
+            }
+            AiCommand::Delete { path } => {
+                let safe_path = resolve_safe_path(&path, &project_roots)?;
+                fs::remove_file(safe_path).map_err(|e| format!("Failed to delete file: {}", e))?;
+            }
+            AiCommand::Move { path, target } => {
+                let safe_path = resolve_safe_path(&path, &project_roots)?;
+                let safe_target = resolve_safe_path(&target, &project_roots)?;
+                
+                if let Some(parent) = safe_target.parent() {
+                    fs::create_dir_all(parent).map_err(|e| format!("Failed to create target directory: {}", e))?;
+                }
+                fs::rename(safe_path, safe_target).map_err(|e| format!("Failed to move file: {}", e))?;
+            }
+        }
+    }
+    Ok(())
+}
+
 fn copy_recursively(source: impl AsRef<Path>, destination: impl AsRef<Path>) -> std::io::Result<()> {
     fs::create_dir_all(&destination)?;
     for entry in fs::read_dir(source)? {
@@ -167,7 +245,8 @@ pub fn run() {
             clear_cache,
             start_api_server,
             stop_api_server,
-            api_response
+            api_response,
+            execute_ai_commands
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
