@@ -100,7 +100,7 @@ async fn api_response(state: tauri::State<'_, api_server::ApiServerState>, id: S
 
 #[derive(serde::Deserialize)]
 #[serde(tag = "action")]
-enum AiCommand {
+enum PulseCommand {
     #[serde(rename = "write")]
     Write { path: String, content: String },
     #[serde(rename = "patch")]
@@ -131,20 +131,20 @@ fn resolve_safe_path(path_str: &str, project_roots: &[String]) -> Result<std::pa
 }
 
 #[tauri::command]
-async fn execute_ai_commands(commands_json: String, project_roots: Vec<String>) -> Result<(), String> {
-    let commands: Vec<AiCommand> = serde_json::from_str(&commands_json)
+async fn execute_pulse_commands(commands_json: String, project_roots: Vec<String>) -> Result<(), String> {
+    let commands: Vec<PulseCommand> = serde_json::from_str(&commands_json)
         .map_err(|e| format!("Invalid JSON format: {}", e))?;
 
     for cmd in commands {
         match cmd {
-            AiCommand::Write { path, content } => {
+            PulseCommand::Write { path, content } => {
                 let safe_path = resolve_safe_path(&path, &project_roots)?;
                 if let Some(parent) = safe_path.parent() {
                     fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {}", e))?;
                 }
                 fs::write(safe_path, content).map_err(|e| format!("Failed to write file: {}", e))?;
             }
-            AiCommand::Patch { path, search, replace } => {
+            PulseCommand::Patch { path, search, replace } => {
                 let safe_path = resolve_safe_path(&path, &project_roots)?;
                 let content = fs::read_to_string(&safe_path).map_err(|e| format!("Failed to read file: {}", e))?;
                 let new_content = content.replace(&search, &replace);
@@ -153,11 +153,11 @@ async fn execute_ai_commands(commands_json: String, project_roots: Vec<String>) 
                 }
                 fs::write(&safe_path, new_content).map_err(|e| format!("Failed to update file: {}", e))?;
             }
-            AiCommand::Delete { path } => {
+            PulseCommand::Delete { path } => {
                 let safe_path = resolve_safe_path(&path, &project_roots)?;
                 fs::remove_file(safe_path).map_err(|e| format!("Failed to delete file: {}", e))?;
             }
-            AiCommand::Move { path, target } => {
+            PulseCommand::Move { path, target } => {
                 let safe_path = resolve_safe_path(&path, &project_roots)?;
                 let safe_target = resolve_safe_path(&target, &project_roots)?;
                 
@@ -241,7 +241,7 @@ pub fn run() {
             start_api_server,
             stop_api_server,
             api_response,
-            execute_ai_commands
+            execute_pulse_commands
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

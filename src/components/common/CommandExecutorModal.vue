@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { invoke } from "@tauri-apps/api/core";
+import ConfirmDialog from './ConfirmDialog.vue';
 
 const props = defineProps<{
   show: boolean;
@@ -14,11 +15,45 @@ const isLoading = ref(false);
 const error = ref('');
 const successMessage = ref('');
 
+// 权限申请相关状态
+const showConfirm = ref(false);
+const unauthorizedPaths = ref<string[]>([]);
+const pendingExecution = ref<{ json: string; roots: string[] } | null>(null);
+
 const handleClose = () => {
   emit('update:show', false);
   commandsJson.value = '';
   error.value = '';
   successMessage.value = '';
+};
+
+const execute = async (json: string, roots: string[]) => {
+  isLoading.value = true;
+  try {
+    await invoke('execute_pulse_commands', {
+      commandsJson: json,
+      projectRoots: roots
+    });
+    
+    successMessage.value = '命令执行成功！';
+    commandsJson.value = '';
+    setTimeout(() => {
+        handleClose();
+    }, 1500);
+  } catch (e: any) {
+    error.value = e.toString();
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const handleConfirmPermission = async () => {
+  if (!pendingExecution.value) return;
+  const { json, roots } = pendingExecution.value;
+  // 将未授权路径作为临时 roots 加入
+  const combinedRoots = [...new Set([...roots, ...unauthorizedPaths.value])];
+  await execute(json, combinedRoots);
+  pendingExecution.value = null;
 };
 
 const runCommands = async () => {
@@ -39,26 +74,49 @@ const runCommands = async () => {
       if (matchJson) jsonToParse = matchJson[1].trim();
     }
 
-    // 仅使用 allowedWritePaths，如果为空则没有任何目录权限
+    // 解析 JSON 以提取路径
+    let commands: any[] = [];
+    try {
+      commands = JSON.parse(jsonToParse);
+      if (!Array.isArray(commands)) {
+        commands = [commands];
+      }
+    } catch (e) {
+      throw new Error('指令格式不正确，请确保是有效的 JSON 数组。');
+    }
+
+    // 提取所有涉及的路径
+    const targetPaths = new Set<string>();
+    commands.forEach(cmd => {
+      if (cmd.path) targetPaths.add(cmd.path);
+      if (cmd.target) targetPaths.add(cmd.target);
+    });
+
+    // 检查现有权限
     const rawRoots = props.allowedWritePaths.trim();
-    const roots = rawRoots
+    const existingRoots = rawRoots
       .split(/[,\n\r]/)
       .map(s => s.trim())
       .filter(s => s.length > 0);
 
-    await invoke('execute_ai_commands', {
-      commandsJson: jsonToParse,
-      projectRoots: roots
+    // 找出未授权路径
+    const unauthorized = Array.from(targetPaths).filter(p => {
+      // 如果路径不是绝对路径，后端会报错，这里暂不处理（让后端报 absolute path required）
+      // 仅针对绝对路径做前缀匹配校验
+      return !existingRoots.some(root => p.startsWith(root));
     });
-    
-    successMessage.value = '命令执行成功！';
-    commandsJson.value = '';
-    setTimeout(() => {
-        handleClose();
-    }, 1500);
+
+    if (unauthorized.length > 0) {
+      unauthorizedPaths.value = unauthorized;
+      pendingExecution.value = { json: jsonToParse, roots: existingRoots };
+      showConfirm.value = true;
+      isLoading.value = false;
+      return;
+    }
+
+    await execute(jsonToParse, existingRoots);
   } catch (e: any) {
     error.value = e.toString();
-  } finally {
     isLoading.value = false;
   }
 };
@@ -129,8 +187,20 @@ const runCommands = async () => {
         </button>
       </div>
     </div>
+
+    <!-- 权限申请对话框 -->
+    <ConfirmDialog
+      v-model="showConfirm"
+      title="申请临时写入权限"
+      :message="`检测到指令正在尝试修改以下未授权目录的文件，是否临时允许本次操作？\n\n${unauthorizedPaths.join('\n')}`"
+      confirmText="允许并执行"
+      cancelText="拒绝"
+      type="warning"
+      @confirm="handleConfirmPermission"
+    />
   </div>
 </template>
+
 
 <style scoped>
 .custom-scrollbar::-webkit-scrollbar { width: 5px; }
