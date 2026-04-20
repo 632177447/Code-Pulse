@@ -175,7 +175,7 @@ function stopResizeSidebar() {
 
     <CommandExecutorModal
       v-model:show="isCommandsOpen"
-      :projectRoots="appConfig.projectRoots"
+      :allowedWritePaths="appConfig.allowedWritePaths"
     />
 
     <LayoutVersionInfo :version="version" />

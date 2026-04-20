@@ -35,4 +35,5 @@ export interface AppConfig {
   apiEnabled: boolean;
   apiPort: number;
   enableCommandOutput: boolean;
+  allowedWritePaths: string;
 }

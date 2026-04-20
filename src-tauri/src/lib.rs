@@ -119,19 +119,14 @@ fn resolve_safe_path(path_str: &str, project_roots: &[String]) -> Result<std::pa
         return Err(format!("Permission denied (traversal): {}", path_str));
     }
 
-    if path.is_absolute() {
-        if project_roots.iter().any(|root| path.starts_with(Path::new(root))) {
-            Ok(path.to_path_buf())
-        } else {
-            Err(format!("Permission denied (outside root): {}", path_str))
-        }
+    if !path.is_absolute() {
+        return Err(format!("Permission denied (absolute path required): {}", path_str));
+    }
+
+    if project_roots.iter().any(|root| path.starts_with(Path::new(root))) {
+        Ok(path.to_path_buf())
     } else {
-        // 如果是相对路径，拼接到第一个项目根目录
-        if let Some(root) = project_roots.first() {
-            Ok(Path::new(root).join(path))
-        } else {
-            Err(format!("Permission denied (no roots): {}", path_str))
-        }
+        Err(format!("Permission denied (outside root): {}", path_str))
     }
 }
 
