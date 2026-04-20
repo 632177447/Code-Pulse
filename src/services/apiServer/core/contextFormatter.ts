@@ -176,7 +176,7 @@ function buildCommandOutputPrompt() {
     '========================================',
     '[OUTPUT FORMAT: AUTOMATION COMMANDS]',
     '========================================',
-    'As the "enableCommandOutput" option is active, you MUST provide your solution as a JSON array of commands inside a ```json_commands``` markdown block.',
+    'You MUST provide your solution as a JSON array of commands inside a ```json_commands``` markdown block to enable automated execution.',
     '',
     '## Command Data Structure',
     '[',
