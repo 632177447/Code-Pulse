@@ -21,22 +21,18 @@ const emit = defineEmits<{
       <!-- 执行指令按钮 -->
       <button
         @click="emit('openCommands')"
-        class="flex items-center gap-2.5 px-5 py-2.5 bg-app-surface/50 hover:bg-app-primary/10 text-app-text-dim hover:text-app-primary border border-app-border hover:border-app-primary/30 rounded-2xl transition-all duration-300 shadow-app-sm hover:shadow-app-md group cursor-pointer backdrop-blur-sm"
+        class="flex items-center gap-2.5 p-2.5 bg-app-surface/50 hover:bg-app-primary/10 text-app-text-dim hover:text-app-primary border border-app-border hover:border-app-primary/30 rounded-2xl transition-all duration-300 shadow-app-sm hover:shadow-app-md group cursor-pointer backdrop-blur-sm"
         title="执行 AI 指令 (Run AI Commands)"
       >
         <div class="relative">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
           <!-- 小红点提示感 -->
           <span class="absolute -top-1 -right-1 w-2 h-2 bg-app-primary rounded-full animate-pulse opacity-0 group-hover:opacity-100 transition-opacity"></span>
         </div>
-        <span class="text-[12px] font-black uppercase tracking-widest">执行 AI 指令</span>
+        <!-- <span class="text-[12px] font-black uppercase tracking-widest">执行 AI 指令</span> -->
       </button>
-
-      <!-- 分隔线 -->
-      <div class="w-px h-6 bg-app-border mx-1 opacity-50"></div>
-
       <!-- 设置按钮 -->
       <button
         @click="emit('openSettings')"

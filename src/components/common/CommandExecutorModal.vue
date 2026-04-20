@@ -49,7 +49,7 @@ const runCommands = async () => {
       projectRoots: roots
     });
     
-    successMessage.value = '命令执行成功！喵~';
+    successMessage.value = '命令执行成功！';
     commandsJson.value = '';
     setTimeout(() => {
         handleClose();
