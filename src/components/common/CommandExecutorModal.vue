@@ -71,7 +71,7 @@ const runCommands = async () => {
       <div class="px-7 py-4 border-b border-app-border flex justify-between items-center bg-app-surface shrink-0">
         <div class="flex flex-col">
             <h3 class="text-2xl font-black text-app-text tracking-tight flex items-center">
-              自动化执行 <span class="ml-3 font-medium opacity-20 text-sm tracking-[0.2em]">COMMANDS</span>
+              自动化控制台 <span class="ml-3 font-medium opacity-20 text-sm tracking-[0.2em]">AUTOMATION</span>
             </h3>
         </div>
         <button @click="handleClose" class="text-app-text-mute hover:text-app-text transition-all p-2 rounded-2xl hover:bg-app-bg cursor-pointer group">
@@ -84,7 +84,7 @@ const runCommands = async () => {
       <!-- Body -->
       <div class="p-8 flex-1 flex flex-col min-h-0 space-y-6 overflow-hidden">
         <div class="flex-1 flex flex-col min-h-0">
-          <label class="block text-[12px] font-black uppercase tracking-[0.2em] opacity-40 mb-3 ml-1 shrink-0">粘贴 AI 返回的 JSON 指令</label>
+          <label class="block text-[12px] font-black uppercase tracking-[0.2em] opacity-40 mb-3 ml-1 shrink-0">粘贴 AI 返回的 PulseCommand 指令以执行自动化修改</label>
           <textarea
             v-model="commandsJson"
             placeholder='[

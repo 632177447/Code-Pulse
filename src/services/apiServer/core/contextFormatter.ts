@@ -174,9 +174,9 @@ function buildLineNumberedContent(content: string) {
 function buildCommandOutputPrompt() {
   return [
     '========================================',
-    '[OUTPUT FORMAT: AUTOMATION COMMANDS]',
+    '[OUTPUT FORMAT: PulseCommand JSON]',
     '========================================',
-    'You MUST provide your solution as a JSON array of commands inside a ```json_commands``` markdown block to enable automated execution.',
+    'You MUST provide your solution as a JSON array of commands (PulseCommand) inside a ```json_commands``` markdown block to enable automated execution.',
     '',
     '## Command Data Structure',
     '[',

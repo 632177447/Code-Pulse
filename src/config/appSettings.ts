@@ -61,14 +61,14 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
       {
         id: "enableCommandOutput",
         type: "switch",
-        label: "自动化命令输出",
-        description: "在上下文头部添加指令，引导 AI 以可直接运行的结构化 JSON 格式输出修复方案，并提供 PowerShell 执行示例。",
+        label: "AI 自动化指令",
+        description: "引导 AI 输出修复方案的 PulseCommand 指令，该指令可粘贴到自动化控制台中执行。",
         defaultValue: false
       },
       {
         id: "customPrompt",
         type: "textarea",
-        label: "全局引导提示词 (Prompt)",
+        label: "全局引导提示词",
         description: "在生成的上下文头部注入自定义指令，引导 AI 更好地理解代码。",
         placeholder: "例如：你是资深 Rust 工程师，正在为我审查以下代码...",
         rows: 3,
@@ -240,8 +240,8 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
       {
         id: "allowedWritePaths",
         type: "textarea",
-        label: "指令允许的写入权限",
-        description: "设置 AI 自动化指令允许写入或修改的绝对路径。可以用逗号或换行分隔。留空则表示禁止所有目录的写入权限。",
+        label: "自动化指令写入权限",
+        description: "设置 PulseCommand 指令允许写入或修改文件的绝对路径白名单。若为空，所有自动化指令都将被拦截并报错。",
         placeholder: "D:/Projects/my-project",
         rows: 3,
         defaultValue: ""
