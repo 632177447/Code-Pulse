@@ -141,7 +141,7 @@ function addLineNumbers(content: string) {
 
   const lineNumberWidth = Math.max(String(lines.length).length, 4);
   const numberedContent = lines
-    .map((line, index) => `L${String(index + 1).padStart(lineNumberWidth, '0')} | ${line}`)
+    .map((line, index) => `L${String(index + 1).padStart(lineNumberWidth, '0')}|${line}`)
     .join('\n');
 
   return hasTrailingNewline ? `${numberedContent}\n` : numberedContent;
@@ -166,7 +166,7 @@ function buildLineNumberedContent(content: string) {
 
   return [
     content.slice(0, actualContentStartIndex),
-    '[LINE NUMBERS]: 1-based, format "L0001 | code"\n',
+    '[LINE NUMBERS]: 1-based, format "L0001|code"\n',
     addLineNumbers(rawContent),
     content.slice(contentEndIndex)
   ].join('');
