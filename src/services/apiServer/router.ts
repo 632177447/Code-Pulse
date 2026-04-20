@@ -7,7 +7,8 @@ import {
   handleGenerateOutline,
   handleGetInfo,
   handleHealthCheck,
-  handleRenderContext
+  handleRenderContext,
+  handleExecutePulseCommands
 } from './handlers';
 import {
   GenerateContextBodySchema,
@@ -18,7 +19,8 @@ import {
   HealthResponseSchema,
   InfoResponseSchema,
   SimpleStatusResponseSchema,
-  ErrorResponseSchema
+  ErrorResponseSchema,
+  ExecutePulseCommandsBodySchema
 } from './schemas/code.schema';
 
 // 初始化 OpenAPIHono 应用
@@ -131,6 +133,23 @@ app.openapi(
     }
   }),
   handleGenerateOutline
+);
+
+// --- Automation 指令路由 ---
+
+app.openapi(
+  createRoute({
+    method: 'post',
+    path: '/api/v1/commands/execute',
+    summary: '执行自动化指令',
+    description: '运行一组 PulseCommand (write/patch/delete/move) 对本地文件系统进行修改。需提供 projectRoots 以进行越权校验。',
+    request: { body: { content: { 'application/json': { schema: ExecutePulseCommandsBodySchema } }, required: true } },
+    responses: {
+      200: { content: { 'application/json': { schema: SimpleStatusResponseSchema } }, description: '指令执行成功' },
+      400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: '执行失败或权限拒绝' }
+    }
+  }),
+  handleExecutePulseCommands
 );
 
 // --- 文档及交互界面 ---

@@ -147,5 +147,48 @@ export const InfoResponseSchema = z.object({
 
 export const SimpleStatusResponseSchema = z.object({
   status: z.string().openapi({ example: 'ok', description: '操作执行状态标识' }),
-  meta: CommonMetaSchema
+  meta: z.intersection(CommonMetaSchema, z.object({
+    details: z.string().optional().openapi({ description: '操作结果补充详情' })
+  })).optional()
 }).openapi('SimpleStatusResponse');
+
+// --- 自动化指令相关 Schema ---
+
+const PulseActionBase = z.object({
+  path: z.string().openapi({ description: '目标文件绝对路径' })
+});
+
+const PulseWriteAction = PulseActionBase.extend({
+  action: z.literal('write').openapi({ description: '写入或覆盖文件' }),
+  content: z.string().openapi({ description: '要写入的文件全文内容' })
+});
+
+const PulsePatchAction = PulseActionBase.extend({
+  action: z.literal('patch').openapi({ description: '局部增量更新文件内容' }),
+  search: z.string().openapi({ description: '待查找的原始内容字符串' }),
+  replace: z.string().openapi({ description: '要替换成的新内容字符串' })
+});
+
+const PulseDeleteAction = PulseActionBase.extend({
+  action: z.literal('delete').openapi({ description: '删除指定文件' })
+});
+
+const PulseMoveAction = PulseActionBase.extend({
+  action: z.literal('move').openapi({ description: '移动或重命名文件' }),
+  target: z.string().openapi({ description: '移动的目标绝对路径' })
+});
+
+export const PulseCommandSchema = z.discriminatedUnion('action', [
+  PulseWriteAction,
+  PulsePatchAction,
+  PulseDeleteAction,
+  PulseMoveAction
+]).openapi('PulseCommand');
+
+export const ExecutePulseCommandsBodySchema = z.object({
+  commands: z.array(PulseCommandSchema).min(1).openapi({ description: '待执行的 PulseCommand 指令数组' }),
+  projectRoots: z.string().openapi({ 
+    example: 'D:/Projects/my-app',
+    description: '项目根目录配置（逗号分隔），用于越权校验。指令涉及的所有路径必须位于这些目录内。' 
+  })
+}).openapi('ExecutePulseCommandsRequest');

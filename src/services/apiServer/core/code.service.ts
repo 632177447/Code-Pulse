@@ -20,12 +20,14 @@ const FRONTEND_API_ROUTES = [
   '/api/v1/contexts/generate',
   '/api/v1/contexts/abort',
   '/api/v1/contexts/render',
-  '/api/v1/outlines/generate'
+  '/api/v1/outlines/generate',
+  '/api/v1/commands/execute'
 ];
 
 const GENERATE_CONTEXT_COMMAND = 'generate_context';
 const ABORT_CONTEXT_COMMAND = 'abort_generate_context';
 const CLEAR_CACHE_COMMAND = 'clear_cache';
+const EXECUTE_COMMANDS_COMMAND = 'execute_pulse_commands';
 
 export class ApiValidationError extends Error {
   details?: string;
@@ -257,6 +259,30 @@ export const CodeService = {
       meta: {
         count: input.fileNodes.length,
         length: text.length
+      }
+    };
+  },
+
+  async executePulseCommands(input: { commands: any[]; projectRoots: string }) {
+    const roots = splitTextList(input.projectRoots);
+    if (roots.length === 0) {
+      throw new ApiValidationError(
+        'Missing projectRoots. For security reasons, you must specify at least one authorized root directory.',
+        'POST /api/v1/commands/execute'
+      );
+    }
+
+    // 执行底层 Rust 命令
+    await invoke(EXECUTE_COMMANDS_COMMAND, {
+      commandsJson: JSON.stringify(input.commands),
+      projectRoots: roots
+    });
+
+    return {
+      status: 'ok',
+      meta: {
+        timestamp: Math.floor(Date.now() / 1000).toString(),
+        count: input.commands.length
       }
     };
   }

@@ -74,3 +74,15 @@ export const handleGenerateOutline = async (c: any) => {
     return createServiceErrorResponse(c, error);
   }
 };
+
+/**
+ * 执行自动化指令 (PulseCommand)
+ */
+export const handleExecutePulseCommands = async (c: any) => {
+  try {
+    const data = c.req.valid('json');
+    return c.json(await CodeService.executePulseCommands(data), 200);
+  } catch (error) {
+    return createServiceErrorResponse(c, error);
+  }
+};
