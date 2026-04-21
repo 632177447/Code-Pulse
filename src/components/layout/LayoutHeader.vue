@@ -13,7 +13,7 @@ const emit = defineEmits<{
       </h1>
       <p class="text-app-text-dim text-sm mt-2 font-medium italic opacity-60 flex items-center">
         <span class="w-1.5 h-1.5 rounded-full bg-app-primary mr-2 opacity-50"></span>
-        一键解析项目依赖，构建完整提示词上下文
+        一键解析项目依赖，赋予对话 AI 本地 Agent 能力
       </p>
     </div>
     
