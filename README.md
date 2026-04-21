@@ -2,7 +2,9 @@
 
 ![CodePulse Preview](./docs/assets/pic1.png)
 
-**CodePulse (文脉)** 是一个简单的代码上下文收集工具，旨在帮助开发者更方便地向大语言模型 (LLM) 提供项目代码背景。它支持 20 多种编程语言，可以自动解析文件中的 `import`、`require` 等依赖，并将相关的代码汇聚成一份结构化的文本，方便你粘贴到 AI 聊天窗口中。
+**CodePulse (文脉)** 是一款专为开发者设计的代码上下文构建与自动化辅助工具。它通过自动解析 20 多种编程语言的依赖关系，将零散的代码逻辑汇聚为结构清晰的文本，旨在解决向大语言模型（LLM）提供项目背景时的繁琐工作，帮助 AI 更精准地理解项目逻辑。
+
+除了上下文收集，CodePulse 还能通过注入引导提示词，辅助 AI 生成特定的自动化指令（PulseCommand），从而在本地安全地完成 AI 建议的文件操作方案。**请注意，CodePulse 本身并不集成 AI 功能，其核心定位是作为代码上下文的精准提取器与自动化指令的执行工具。**
 
 [**下载最新版本**](https://github.com/632177447/Code-Pulse/releases)
 
@@ -10,106 +12,99 @@
 
 ## ✨ 主要功能
 
-- **依赖解析**: 自动识别主流编程语言（TS/JS, Rust, Python, Go, Java, Vue 等）的引用关系，通过递归扫描把相关的代码找齐。
-- **文件过滤**: 预设了常用的过滤规则（如 `.git`, `node_modules`, `build` 等），也支持自己配置 Glob 模式和后缀名。
-- **性能与控制**: 带有简单的后端文件缓存，重复解析时速度较快，且支持随时中断解析过程。
-- **上下文优化**: 提供了一个选项，可以只保留函数或类的定义而移除具体实现，用来节省 Token 消耗。
-- **项目结构预览**: 在生成的文本顶部会自动附带一份文件树，让 AI 对项目结构有个直观了解。
-- **编辑与统计**: 生成的结果可以直接在框内修改，并实时显示字数，方便二次调整。
-- **界面设计**: 基于 Tauri 2.x 和 Vue 3 开发，简洁美观，支持文件拖放操作。
-- **API 扩展**: 内置本地 RESTful API 服务，提供 Swagger 接口文档，支持与其他工具无缝集成。
+- **自动化依赖解析**: 自动识别主流编程语言（TS/JS, Rust, Python, Go, Java, Vue 等）的引用关系，通过递归扫描补全相关代码依赖。
+- **结构化上下文**: 自动生成文件树视图和依赖关系说明，并支持为重点文件添加关注标记，帮助 AI 快速构建项目全局认知。
+- **精细化内容控制**: 提供多种输出开关，支持行序号显示、路径优化及全局提示词注入；支持**上下文压缩**（移除具体实现）与**大纲模式**（仅保留结构），有效节省 Token 消耗。
+- **自动化指令执行**: 内置 PulseCommand 执行窗口，可安全运行由 AI 建议的文件操作指令，辅助完成代码修复与调整（具备严格的路径权限校验）。
+- **API 与集成**: 内置本地 RESTful API 服务，提供 Swagger 文档，支持与其他开发工具或自动化流无缝对接。
 
 ---
 
-## 💡 为什么写这个工具？
+## 🚀 快速上手
 
-在用 ChatGPT 或 Claude 处理复杂一点的代码任务时，往往需要手动把好几个关联文件的内容粘贴过去，非常麻烦。
-
-CodePulse 就是为了解决这个“体力活”。它通过解析代码间的引用关系，把相关的逻辑块自动找出来并整合好。这样即使不使用复杂的 AI Agent，在普通的对话框里也能让 AI 更有针对性地理解你的项目逻辑。
-
----
-
-## 安装说明
-
+### 1. 安装说明
 你可以直接从 [GitHub Releases](https://github.com/632177447/Code-Pulse/releases) 下载适合你系统的安装包（支持 Windows、macOS 和 Linux）。
 
+### 2. 使用步骤
+1. **基础设置**: 在设置页面配置好递归深度、过滤规则，并确保已配置项目根目录。
+2. **添加代码**: 将需要解析的文件或文件夹拖入窗口。
+3. **获取上下文**: 点击生成按钮，复制生成的文本发送给 AI 助理。
+4. **执行指令**: 若 AI 回复了 PulseCommand 格式的指令，可直接在 CodePulse 的指令窗口一键执行。
+
+<details>
+<summary>📸 点击查看界面截图</summary>
+<br />
+<p align="center">
+  <img src="./docs/assets/pic1.png" width="45%" />
+  <img src="./docs/assets/pic2.png" width="45%" />
+</p>
+</details>
+
 ---
 
-## 本地开发
+## 🔌 API 接口扩展
 
-如果你想在本地运行或参与开发，需要先安装 [Rust](https://www.rust-lang.org/) 环境。
+为了方便整合进自己的 IDE 或工作流，CodePulse 提供了一套符合 OpenAPI 标准的本地服务。
 
-1. **克隆项目**:
+启动程序后，可通过以下路径查看 Swagger API 文档：
+👉 **`http://localhost:<运行端口>/docs`**
+
+目前已开放系统状态、缓存清理、依赖大纲、内容生成及 **PulseCommand 指令执行** 等接口。
+
+---
+
+## 🛠️ 本地开发
+
+### 环境准备
+- **Rust**: [安装指南](https://www.rust-lang.org/tools/install) (Tauri 后端驱动)
+- **Node.js**: 建议 v18.0 或更高版本
+- **包管理器**: npm / yarn / pnpm 均可
+
+### 快速开始
+1. **克隆项目**
    ```bash
-   git clone https://github.com/your-repo/CodePulse.git
-   cd CodePulse
+   git clone https://github.com/632177447/Code-Pulse.git
+   cd Code-Pulse
    ```
-
-2. **安装前端依赖**:
+2. **安装依赖**
    ```bash
    npm install
    ```
-
-3. **启动开发服务器**:
+3. **启动开发环境**
    ```bash
    npm run tauri dev
    ```
 
 ### 打包构建
-
+生成适合当前操作系统的安装包：
 ```bash
 npm run tauri build
 ```
 
 ---
 
-## 使用步骤
+## 🏗️ 技术实现
 
-1. **基础设置**: 在设置页面配置好递归深度、过滤规则或项目根目录。
-   
-   <details>
-   <summary>📸 点击查看界面截图</summary>
-   <br />
-   <p align="center">
-     <img src="./docs/assets/pic1.png" width="45%" />
-     <img src="./docs/assets/pic2.png" width="45%" />
-   </p>
-   </details>
-
-2. **添加代码**: 把想解析的文件或文件夹拖进去。
-3. **补充需求**: 如果有特定的指令，写在附加提示词框里。
-4. **生成内容**: 点击生成按钮，等待解析完成。
-5. **复制粘贴**: 一键复制结果，发给你的 AI 助理即可。
+- **前端框架**: Vue 3 (Composition API)
+- **桌面平台**: Tauri 2.0 (Rust)
+- **样式体系**: Tailwind CSS (v4)
+- **核心逻辑**: 基于正则与语法特征的依赖提取，配合 Rust 实现高效扫描。
+- **服务框架**: 基于 Hono 与 Zod 验证，提供标准的 OpenAPI 接口。
 
 ---
 
-## API 接口扩展
+## 🤝 贡献与反馈
 
-为了方便开发者将代码解析能力整合进自己的 IDE、工作流或自动化脚本中，CodePulse 在后台提供了一套符合 OpenAPI 标准的本地服务。
+如果你在使用中遇到任何问题，或者有更好的改进建议，欢迎通过以下方式参与：
+- 提交 [Issue](https://github.com/632177447/Code-Pulse/issues) 报告 Bug
+- 提交 Pull Request 贡献代码
 
-启动程序后，你可以直接在浏览器或 HTTP 客户端请求以下路径，查看交互式的 Swagger API 文档：
-👉 **`http://localhost:<运行端口>/docs`**
-
-通过查阅文档，你可以轻松发现所有开放的系统状态、缓存清理、依赖大纲以及内容生成等接口。
-
----
-
-## 技术实现
-
-- **前端**: Vue 3 (Composition API)
-- **桌面端**: Tauri 2.0 (Rust 驱动)
-- **样式**: Tailwind CSS
-- **解析逻辑**: 基于正则匹配的依赖提取，配合 Rust 实现的高效扫描。
-- **API 服务**: 基于 Hono 与 Zod 验证，提供标准的 OpenAPI (Swagger) 接口。
+感谢所有为 CodePulse 做出贡献的开发者！
 
 ---
 
-## 维护与反馈
+## 📄 开源协议
 
-如果有 bug 或者新建议，欢迎提 Issue 或 PR，感谢支持。
+本项目基于 [MIT License](LICENSE) 协议开源。
 
----
-
-## 开源协议
-
-MIT License | Copyright (c) 2024 CodePulse Team
+Copyright (c) 2026 CodePulse Team
