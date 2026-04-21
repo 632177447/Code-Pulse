@@ -166,6 +166,7 @@ app.doc('/api/v1/doc', {
 
 // 提供 Swagger UI 界面
 app.get('/api/v1/ui', swaggerUI({ url: '/api/v1/doc' }));
+app.get('/docs', swaggerUI({ url: '/api/v1/doc' }));
 
 // 处理 404
 app.notFound((c) => c.json({ error: 'Not Found' }, 404));

@@ -88,7 +88,7 @@ npm run tauri build
 为了方便开发者将代码解析能力整合进自己的 IDE、工作流或自动化脚本中，CodePulse 在后台提供了一套符合 OpenAPI 标准的本地服务。
 
 启动程序后，你可以直接在浏览器或 HTTP 客户端请求以下路径，查看交互式的 Swagger API 文档：
-👉 **`http://localhost:<运行端口>/api/v1/ui`**
+👉 **`http://localhost:<运行端口>/docs`**
 
 通过查阅文档，你可以轻松发现所有开放的系统状态、缓存清理、依赖大纲以及内容生成等接口。
 

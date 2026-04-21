@@ -2,6 +2,8 @@
 import { computed, ref } from 'vue';
 import type { SettingItem } from './types';
 
+import { openUrl } from '@tauri-apps/plugin-opener';
+
 const props = defineProps<{
   config: SettingItem;
   modelValue?: any;
@@ -53,13 +55,71 @@ const handleSelect = (val: any) => {
     isSelectOpen.value = false;
   }
 };
+
+// Info 类型文本渲染逻辑
+const renderedSegments = computed(() => {
+  if (props.config.type !== 'info-text') return [];
+  
+  let text = props.config.text;
+  
+  // 1. 变量替换 {{variable}}
+  text = text.replace(/\{\{(.*?)\}\}/g, (_, key) => {
+    const trimmedKey = key.trim();
+    return props.settings?.[trimmedKey] !== undefined ? String(props.settings[trimmedKey]) : `{{${key}}}`;
+  });
+
+  // 2. 解析 [label](url) 格式
+  const segments: { type: 'text' | 'link'; content: string; url?: string }[] = [];
+  const linkRegex = /\[(.*?)\]\((.*?)\)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = linkRegex.exec(text)) !== null) {
+    // 添加链接前的文本
+    if (match.index > lastIndex) {
+      segments.push({
+        type: 'text',
+        content: text.substring(lastIndex, match.index)
+      });
+    }
+    
+    // 添加链接
+    segments.push({
+      type: 'link',
+      content: match[1],
+      url: match[2]
+    });
+    
+    lastIndex = linkRegex.lastIndex;
+  }
+
+  // 添加剩余文本
+  if (lastIndex < text.length) {
+    segments.push({
+      type: 'text',
+      content: text.substring(lastIndex)
+    });
+  }
+
+  return segments;
+});
+
+const openExternalLink = async (url: string) => {
+  try {
+    await openUrl(url);
+  } catch (err) {
+    console.error("Failed to open external link:", err);
+    // Fallback to window.open if tauri open fails (e.g. in browser dev mode)
+    window.open(url, '_blank');
+  }
+};
 </script>
 
 <template>
   <!-- Slider -->
   <div v-if="config.type === 'slider'" :class="['w-full', config.label ? 'space-y-2' : '']">
     <div class="flex items-center justify-between">
-        <label v-if="config.label" :for="config.id" class="block text-[11px] font-black tracking-widest text-app-text-dim">{{ config.label }}</label>
+        <label v-if="config.label" :for="config.id" class="block text-[12px] font-black tracking-widest text-app-text-dim">{{ config.label }}</label>
         <span class="text-xs text-center font-black font-mono text-app-primary bg-app-primary-light px-4 py-0.5 rounded-lg border border-app-primary/10 tracking-widest">{{ ctrlValue }}</span>
     </div>
     <p v-if="config.description" class="text-[11px] text-app-text-mute pb-1 leading-relaxed italic opacity-80">{{ config.description }}</p>
@@ -77,7 +137,7 @@ const handleSelect = (val: any) => {
 
   <!-- Input -->
   <div v-else-if="config.type === 'input'" :class="['w-full', config.label ? 'space-y-2' : '']">
-    <label v-if="config.label" :for="config.id" class="block text-[11px] font-black tracking-widest text-app-text-dim">{{ config.label }}</label>
+    <label v-if="config.label" :for="config.id" class="block text-[12px] font-black tracking-widest text-app-text-dim">{{ config.label }}</label>
     <p v-if="config.description" class="text-[11px] text-app-text-mute pb-1 leading-relaxed italic opacity-80">{{ config.description }}</p>
     <div class="relative group">
         <input 
@@ -108,7 +168,7 @@ const handleSelect = (val: any) => {
 
   <!-- Textarea -->
   <div v-else-if="config.type === 'textarea'" :class="['w-full', config.label ? 'space-y-2' : '']">
-    <label v-if="config.label" :for="config.id" class="block text-[11px] font-black tracking-widest text-app-text-dim">{{ config.label }}</label>
+    <label v-if="config.label" :for="config.id" class="block text-[12px] font-black tracking-widest text-app-text-dim">{{ config.label }}</label>
     <p v-if="config.description" class="text-[11px] text-app-text-mute pb-1 leading-relaxed italic opacity-80">{{ config.description }}</p>
     <textarea 
       :id="config.id"
@@ -121,7 +181,7 @@ const handleSelect = (val: any) => {
   
   <!-- Select-->
   <div v-else-if="config.type === 'select'" :class="['w-full', config.label ? 'space-y-2' : '']">
-    <label v-if="config.label" :for="config.id" class="block text-[11px] font-black tracking-widest text-app-text-dim">{{ config.label }}</label>
+    <label v-if="config.label" :for="config.id" class="block text-[12px] font-black tracking-widest text-app-text-dim">{{ config.label }}</label>
     <p v-if="config.description" class="text-[11px] text-app-text-mute pb-1 leading-relaxed italic opacity-80">{{ config.description }}</p>
     <div class="relative">
       <div 
@@ -193,7 +253,7 @@ const handleSelect = (val: any) => {
   <!-- Switch -->
   <label v-else-if="config.type === 'switch'" class="flex items-center justify-between cursor-pointer group py-3 px-4 bg-app-bg rounded-2xl border border-app-border/40 hover:border-app-primary/30 transition-all duration-500">
     <div class="flex flex-col pr-6">
-      <span v-if="config.label" class="text-[11px] font-black tracking-widest text-app-text-dim group-hover:text-app-text transition-colors">{{ config.label }}</span>
+      <span v-if="config.label" class="text-[12px] font-black tracking-widest text-app-text-dim group-hover:text-app-text transition-colors">{{ config.label }}</span>
       <span v-if="config.description" class="text-[11px] text-app-text-mute italic mt-1 leading-relaxed opacity-80">{{ config.description }}</span>
     </div>
     <div class="relative shrink-0">
@@ -204,7 +264,7 @@ const handleSelect = (val: any) => {
 
   <!-- Radio -->
   <div v-else-if="config.type === 'radio'" :class="[config.label ? 'space-y-2' : '']">
-    <label v-if="config.label" class="block text-[11px] font-black tracking-widest text-app-text-dim">{{ config.label }}</label>
+    <label v-if="config.label" class="block text-[12px] font-black tracking-widest text-app-text-dim">{{ config.label }}</label>
     <p v-if="config.description" class="text-[11px] text-app-text-mute pb-1 leading-relaxed italic opacity-80">{{ config.description }}</p>
     <div class="flex flex-wrap gap-4">
       <label v-for="opt in config.options" :key="getOptValue(opt)" class="flex items-center space-x-2.5 cursor-pointer group">
@@ -220,7 +280,7 @@ const handleSelect = (val: any) => {
   <div v-else-if="config.type === 'button'" :class="[config.label ? 'space-y-3' : '']">
     <div class="flex items-center justify-between">
       <div class="flex flex-col pr-6">
-        <span v-if="config.label" class="text-[11px] font-black tracking-widest text-app-text-dim">{{ config.label }}</span>
+        <span v-if="config.label" class="text-[12px] font-black tracking-widest text-app-text-dim">{{ config.label }}</span>
         <span v-if="config.description" class="text-[11px] text-app-text-mute italic mt-1 leading-relaxed opacity-80">{{ config.description }}</span>
       </div>
       <button 
@@ -235,7 +295,7 @@ const handleSelect = (val: any) => {
 
   <!-- Checkbox -->
   <div v-else-if="config.type === 'checkbox'" :class="[config.label ? 'space-y-3' : '']">
-    <label v-if="config.label" class="block text-[11px] font-black tracking-widest text-app-text-dim">{{ config.label }}</label>
+    <label v-if="config.label" class="block text-[12px] font-black tracking-widest text-app-text-dim">{{ config.label }}</label>
     <p v-if="config.description" class="text-[11px] text-app-text-mute pb-1 leading-relaxed italic opacity-80">{{ config.description }}</p>
     
     <!-- Grid Layout Mode -->
@@ -263,6 +323,22 @@ const handleSelect = (val: any) => {
         <input type="checkbox" :value="getOptValue(opt)" v-model="ctrlValue" class="w-4 h-4 accent-app-primary bg-app-surface border-app-border rounded transition-all">
         <span class="text-[11px] font-black tracking-widest text-app-text-mute group-hover:text-app-text transition-colors">{{ opt.label }}</span>
       </label>
+    </div>
+  </div>
+
+  <!-- Info -->
+  <div v-else-if="config.type === 'info-text'" :class="[config.label ? 'space-y-2' : '']" class="bg-app-bg/40 p-4 rounded-2xl border border-app-border/30">
+    <label v-if="config.label" class="block text-[12px] font-black tracking-widest text-app-text-dim mb-1">{{ config.label }}</label>
+    <div class="text-[12px] leading-relaxed text-app-text-mute font-medium">
+      <template v-for="(seg, idx) in renderedSegments" :key="idx">
+        <span v-if="seg.type === 'text'">{{ seg.content }}</span>
+        <a 
+          v-else-if="seg.type === 'link'" 
+          href="javascript:void(0)" 
+          @click="openExternalLink(seg.url!)"
+          class="text-app-primary hover:underline font-bold transition-all mx-0.5"
+        >{{ seg.content }}</a>
+      </template>
     </div>
   </div>
 </template>
