@@ -71,8 +71,8 @@ npm run tauri build
    <summary>📸 点击查看界面截图</summary>
    <br />
    <p align="center">
+     <img src="./docs/assets/pic1.png" width="45%" />
      <img src="./docs/assets/pic2.png" width="45%" />
-     <img src="./docs/assets/pic3.png" width="45%" />
    </p>
    </details>
 
