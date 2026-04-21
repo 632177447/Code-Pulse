@@ -63,7 +63,7 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         type: "switch",
         label: "AI 自动化指令",
         description: "引导 AI 输出修复方案的 PulseCommand 指令，该指令可粘贴到自动化控制台中执行。",
-        defaultValue: false
+        defaultValue: true
       },
       {
         id: "customPrompt",

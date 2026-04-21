@@ -178,6 +178,7 @@ function buildCommandOutputPrompt() {
     '[OUTPUT FORMAT: PulseCommand JSON]',
     '========================================',
     'You MUST provide your solution as a JSON array of commands (PulseCommand) inside a ```json_commands``` markdown block to enable automated execution.',
+    'After generating the JSON commands, please explicitly remind the user to copy these commands and run them in the CodePulse 自动化控制台.',
     '',
     '## Command Data Structure',
     '[',
@@ -287,7 +288,7 @@ export function formatContextContent(fileNodes: ContextRenderableNode[], options
     finalContext += customPrompt.trim() + '\n\n';
   }
 
-  if (enableCommandOutput) {
+  if (enableCommandOutput && !omitFileBlocks) {
     finalContext += buildCommandOutputPrompt() + '\n';
   }
 
