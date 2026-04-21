@@ -151,7 +151,7 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
         id: "enableMinimization",
         type: "switch",
         label: "上下文压缩",
-        description: "移除代码中的函数实现，仅保留定义，大幅节省上下文空间。",
+        description: "移除代码中的函数实现和注释，仅保留定义，大幅节省上下文空间。",
         defaultValue: true
       },
       {
@@ -229,6 +229,13 @@ export const APP_SETTINGS_GROUPS: SettingGroup[] = [
           const { apiServerManager } = await import("../services/apiServer");
           await apiServerManager.start(port);
         }
+      },
+      {
+        id: "apiDocInfo",
+        type: "info-text",
+        label: "接口文档说明",
+        text: "API 服务启动后，您可以通过访问 [API文档](http://localhost:{{apiPort}}/docs) 查看详细的 OpenAPI 规格文档和接口测试界面。",
+        visible: (settings: any) => settings.apiEnabled === true
       }
     ]
   },

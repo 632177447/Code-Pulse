@@ -1,4 +1,4 @@
-export type SettingControlType = 'slider' | 'input' | 'textarea' | 'switch' | 'radio' | 'checkbox' | 'button' | 'select';
+export type SettingControlType = 'slider' | 'input' | 'textarea' | 'switch' | 'radio' | 'checkbox' | 'button' | 'select' | 'info-text';
 
 export interface SettingItemBase {
   id: string;
@@ -64,6 +64,11 @@ export interface ButtonSettingItem extends SettingItemBase {
   colorClass?: string;
 }
 
+export interface InfoTextSettingItem extends SettingItemBase {
+  type: 'info-text';
+  text: string;
+}
+
 export type SettingItem = 
   | SliderSettingItem 
   | InputSettingItem 
@@ -72,7 +77,8 @@ export type SettingItem =
   | RadioSettingItem 
   | CheckboxSettingItem
   | SelectSettingItem
-  | ButtonSettingItem;
+  | ButtonSettingItem
+  | InfoTextSettingItem;
 
 export interface SettingGroup {
   id: string;
